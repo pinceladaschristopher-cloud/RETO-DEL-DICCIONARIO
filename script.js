@@ -2,6 +2,16 @@
 // CONSTANTES DE JUEGO (INTEGRADAS DE deepseek_*.js)
 // =======================================================================
 
+// Base de datos de palabras (Simulación, asume que esta constante existe)
+const HUGE_WORD_DATABASE = {
+    "Monosílabos": { words: ["el", "la", "un", "una", "yo", "tú", "él", "ella", "nos", "vos", "les", "que", "qué", "se", "sé", "si", "sí", "más", "mas", "aún", "aun", "de", "dé", "mi", "mí", "te", "té", "o", "u", "por", "para", "con", "sin"], limit: 15, value: 500 },
+    "Agudas": { words: ["canción", "café", "rubí", "jamás", "vivir", "pared", "balón", "razón", "capaz", "país", "avión", "quizás", "reloj", "perdón"], limit: 15, value: 1000, superValueWords: ["avión", "país", "balón"] },
+    "Llanas": { words: ["árbol", "fácil", "azúcar", "álbum", "lápiz", "cárcel", "césped", "débil", "mártir", "tórax", "clímax", "dólar", "móvil", "trébol", "ángel", "cómic"], limit: 15, value: 2500, superValueWords: ["árbol", "fácil", "césped"] },
+    "Esdrújulas": { words: ["médico", "pájaro", "música", "último", "teléfono", "brújula", "oxígeno", "antónimo", "ejército", "lágrima", "miércoles", "sílaba", "décimo", "fantástico"], limit: 15, value: 5000, superValueWords: ["médico", "pájaro", "música"] },
+    "Sobreesdrújulas": { words: ["cuéntamelo", "dígamelo", "devuélveselo", "cómpratelo", "quítaselo", "recuérdamelo"], limit: 1, value: 10000000 }
+};
+
+
 /**
  * Niveles predefinidos de dificultad (no usados directamente, sino como referencia)
  * Integrado de deepseek_javascript_20251203_0ff230.js
@@ -262,15 +272,17 @@ const PROBLEMATIC_WORDS = {
 /**
  * Sistema de eventos y sonidos contextuales.
  * Integrado de deepseek_javascript_20251203_0dce6c.js
+ * Modificado el sonido LOW_HEALTH para usar Oscillator y evitar deprecación de PulseOscillator.
  */
 const CONTEXTUAL_SOUNDS = {
     LOW_HEALTH: {
         trigger: () => consecutiveFailures >= 2,
         sound: () => {
-            const heartbeat = new Tone.PulseOscillator(120).toDestination();
-            const lfo = new Tone.LFO(2, 120, 180).start();
-            lfo.connect(heartbeat.frequency);
-            heartbeat.start().stop("+0.5");
+            // Reemplazo de Tone.PulseOscillator por Tone.Oscillator y Tone.Tremolo para simular latido/tensión
+            const osc = new Tone.Oscillator(120, "square").toDestination();
+            const tremolo = new Tone.Tremolo(4, 0.9).toDestination().start(); // 4 Hz, profundidad 90%
+            osc.connect(tremolo);
+            osc.start().stop("+0.5"); // Latido corto
         },
         frequency: 5000, 
         lastPlayed: 0
@@ -531,6 +543,8 @@ class DynamicAudioSystem {
     }
 
     playSceneMusic(scene, duration = 1.5) {
+        // Solo reproducir si el audio ha sido inicializado y no está silenciado
+        if (!audioInitialized || isMuted) return;
         if (this.musicScene === scene) return;
         this.musicScene = scene;
         
@@ -651,6 +665,7 @@ function playSoundEffect(soundConfig) {
 /**
  * Función para chequear y reproducir sonidos contextuales.
  * Integrado de deepseek_javascript_20251203_0dce6c.js
+ * LOW_HEALTH usa el nuevo Tone.Oscillator.
  */
 function checkContextualSounds() {
     Object.values(CONTEXTUAL_SOUNDS).forEach(context => {
@@ -658,6 +673,9 @@ function checkContextualSounds() {
         if (context === CONTEXTUAL_SOUNDS.STREAK) {
             context.trigger = () => playerStats.jefesDerrotadosSeguidos >= 1; // Simplificado para probar
         }
+
+        // Solo ejecutar si el audio está inicializado
+        if (!audioInitialized) return;
 
         if (context.trigger() && gameState === 'PLAYING' && !isMuted) {
             if (context.oneTime && !context.played) {
@@ -689,7 +707,7 @@ let gameState = 'STARTUP';
 let playerName = "";
 
 // --- Instancias de Audio ---
-let audioInitialized = false;
+let audioInitialized = false; // Indica si las clases de audio fueron creadas
 let positionalAudio = null;
 let audioSystem = null;
 
@@ -848,7 +866,7 @@ const BOSS_INITIAL_DIALOGUES = [
     "Veo que has reunido un pequeño tesoro... Demuéstrame que mereces conservarlo.", "Tus palabras acumuladas cantan una melodía que me atrae. ¿Defenderás tu colección?",
     "Huelo el poder de la sintaxis en ti. Pero, ¿conoces la verdadera ortografía?", "Has sido descuidado. Dejaste un rastro de tildes olvidadas, y yo lo he seguido hasta aquí.",
     "Otro coleccionista... Creen que acumular es saber. Te enseñaré la diferencia.", "Las reglas son mis cadenas y tu conocimiento, la llave. No te la dejaré usar.",
-    "¿Sientes ese peso en el aire? Son las tildes que has ignorado. Vengo a reclamarlas.", "Tus avances no han pasado desapercebidos. Es hora de una pequeña corrección.",
+    "¿Sientes ese peso en el aire? Son las tildes que has ignorado. Vengo a reclamarlas.", "Tus avances no han pasado desapercibidos. Es hora de una pequeña corrección.",
     "Me llaman ladrón, pero yo me considero un purista. Vengo a limpiar tu colección de errores.", "El conocimiento sin precisión es ruido. Y tú estás haciendo mucho ruido."
 ];
 const BOSS_VICTORY_DIALOGUES = [
@@ -928,7 +946,7 @@ const BOSS_SENTENCES = {
 const ICON_LIBRARY = {
     'bossIcon': `<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle><path d="M10.5 14.5c.5.3 1.2.3 1.7 0 M8 9.5s1-1 4-1 4 1 4 1"/></svg>`,
     'christopherIcon': `<svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>`,
-    'speakerOn': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>`,
+    'speakerOn': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17.5 10.5a5.5 5.5 0 000 7.78M21 7a9 9 0 010 12.72" /></svg>`,
     'speakerOff': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" /><path stroke-linecap="round" stroke-linejoin="round" d="M17 14l-2-2m0 0l-2-2m2 2l2-2m-2 2l-2 2" /></svg>`
 };
 
@@ -1156,62 +1174,67 @@ function setGameState(newState) {
     }
     
     // Transición de música basada en el nuevo estado
-    switch (newState) {
-        case 'PLAYING':
-            if (oldState !== 'CINEMATIC') {
-                hideAllModals(); 
-            }
-            startGameLoops();
-            window.audioSystem.playSceneMusic('playing'); 
-            if (oldState !== 'CINEMATIC') {
-                if (!currentWord || !currentWord.word) {
-                     console.log("Generating initial word because currentWord is empty.");
-                     generateNewWord(true); 
-                } else {
-                    console.log("Resuming with current word:", currentWord.word);
-                     updateTimerBarUI();
-                     const baseDuration = currentWord.isBonus ? 1000 : 3000;
-                     const difficultyFactor = calculateDynamicDifficulty();
-                     const duration = Math.max(1000, baseDuration / difficultyFactor); 
-                     const elapsedTime = Date.now() - (currentWord.startTime || Date.now());
-                     const remainingTime = Math.max(0, duration - elapsedTime);
-                     startWordDisplayTimer(remainingTime);
+    // Solo si el audio ha sido inicializado (tras el primer clic)
+    if (audioInitialized) {
+        switch (newState) {
+            case 'PLAYING':
+                if (oldState !== 'CINEMATIC') {
+                    hideAllModals(); 
                 }
-            } else {
-                if (currentWord && currentWord.startTime) {
-                    const baseDuration = currentWord.isBonus ? 1000 : 3000;
-                    const difficultyFactor = calculateDynamicDifficulty();
-                    const duration = Math.max(1000, baseDuration / difficultyFactor); 
-                    
-                    const elapsedTime = Date.now() - currentWord.startTime;
-                    const remainingTime = Math.max(0, duration - elapsedTime);
-                    console.log(`Resuming word timer after cinematic. Remaining: ${remainingTime}ms`);
-                    startWordDisplayTimer(remainingTime);
+                startGameLoops();
+                window.audioSystem.playSceneMusic('playing'); 
+                if (oldState !== 'CINEMATIC') {
+                    if (!currentWord || !currentWord.word) {
+                         console.log("Generating initial word because currentWord is empty.");
+                         generateNewWord(true); 
+                    } else {
+                        console.log("Resuming with current word:", currentWord.word);
+                         updateTimerBarUI();
+                         const baseDuration = currentWord.isBonus ? 1000 : 3000;
+                         const difficultyFactor = calculateDynamicDifficulty();
+                         const duration = Math.max(1000, baseDuration / difficultyFactor); 
+                         const elapsedTime = Date.now() - (currentWord.startTime || Date.now());
+                         const remainingTime = Math.max(0, duration - elapsedTime);
+                         startWordDisplayTimer(remainingTime);
+                    }
                 } else {
-                     console.log("Generating new word after cinematic because currentWord lacks startTime.");
-                     generateNewWord(true);
+                    if (currentWord && currentWord.startTime) {
+                        const baseDuration = currentWord.isBonus ? 1000 : 3000;
+                        const difficultyFactor = calculateDynamicDifficulty();
+                        const duration = Math.max(1000, baseDuration / difficultyFactor); 
+                        
+                        const elapsedTime = Date.now() - currentWord.startTime;
+                        const remainingTime = Math.max(0, duration - elapsedTime);
+                        console.log(`Resuming word timer after cinematic. Remaining: ${remainingTime}ms`);
+                        startWordDisplayTimer(remainingTime);
+                    } else {
+                         console.log("Generating new word after cinematic because currentWord lacks startTime.");
+                         generateNewWord(true);
+                    }
                 }
-            }
-            break;
-        case 'STARTUP':
-            hideAllModals();
-            window.audioSystem.playSceneMusic('startup'); 
-            break;
-        case 'CINEMATIC':
-            // La música de CINEMATIC se maneja específicamente en showModal/typeEffect
-            break; 
-        case 'CHALLENGE_MINI':
-        case 'CHALLENGE_BOSS':
-            window.audioSystem.playSceneMusic('boss');
-            break; 
-        case 'GAME_OVER':
-            window.audioSystem.stopAllMusic(0.5);
-            playSoundEffect(SOUND_EFFECTS.GAME.GAME_OVER);
-            break;
-        case 'GAME_WON':
-            window.audioSystem.stopAllMusic(0.5);
-            playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY);
-            break;
+                break;
+            case 'STARTUP':
+                hideAllModals();
+                window.audioSystem.playSceneMusic('startup'); 
+                break;
+            case 'CINEMATIC':
+                // La música de CINEMATIC se maneja específicamente en showModal/typeEffect
+                break; 
+            case 'CHALLENGE_MINI':
+            case 'CHALLENGE_BOSS':
+                window.audioSystem.playSceneMusic('boss');
+                break; 
+            case 'GAME_OVER':
+                window.audioSystem.stopAllMusic(0.5);
+                playSoundEffect(SOUND_EFFECTS.GAME.GAME_OVER);
+                break;
+            case 'GAME_WON':
+                window.audioSystem.stopAllMusic(0.5);
+                playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY);
+                break;
+        }
+    } else if (newState === 'STARTUP') {
+        hideAllModals();
     }
 }
 
@@ -1388,7 +1411,7 @@ function startWordDisplayTimer(duration) {
     wordDisplayTimeout = setTimeout(() => {
         if (gameState === 'PLAYING') {
              console.log("Word timer expired, generating new word.");
-             window.audioSystem.addStinger('error'); // Sonido de fallo/expiración
+             if (audioInitialized) window.audioSystem.addStinger('error'); // Sonido de fallo/expiración
              generateNewWord(true);
         } else {
              console.log("Word timer expired, but game state is not PLAYING.");
@@ -1401,8 +1424,10 @@ function startWordDisplayTimer(duration) {
  */
 function triggerLimboGramatical() {
     setGameState('CINEMATIC');
-    window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
-    playSoundEffect(SOUND_EFFECTS.GUARDIAN.APPEAR);
+    if (audioInitialized) {
+        window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
+        playSoundEffect(SOUND_EFFECTS.GUARDIAN.APPEAR);
+    }
 
     playerStats.limboActivaciones++; // Contador de logros
 
@@ -1714,8 +1739,10 @@ function buyWord() {
         playerStats.palabrasCorruptasEvitadas++; // Contar las compradas como evitadas/identificadas (esto puede ser confuso, se ajustará en el futuro)
         playerStats.rachaBossSinFallos = 0; // Rompe la racha si se compra corrupta
         
-        window.audioSystem.playSceneMusic('thief');
-        playSoundEffect(SOUND_EFFECTS.THIEF.CORRUPT); // Efecto de corrupción
+        if (audioInitialized) {
+            window.audioSystem.playSceneMusic('thief');
+            playSoundEffect(SOUND_EFFECTS.THIEF.CORRUPT); // Efecto de corrupción
+        }
         showWhisperModal(BOSS_TAUNT);
         updateUI();
         generateNewWord(true);
@@ -1731,7 +1758,7 @@ function buyWord() {
         const remainingTime = (christopherBoostEndTime > now) ? (christopherBoostEndTime - now) : 0;
         christopherBoostEndTime = now + remainingTime + baseDuration; 
         wordBought = true;
-        playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE); // Sonido de bonus
+        if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE); // Sonido de bonus
     } else {
          console.log("Attempting to buy regular word:", currentWord.word, "Category:", currentWord.category);
          
@@ -1791,9 +1818,9 @@ function buyWord() {
                 const baseDuration = 10000; // 10 segundos
                 const remainingTime = (superValueBoosts[category] > now) ? (superValueBoosts[category] - now) : 0;
                 superValueBoosts[category] = now + remainingTime + baseDuration; 
-                playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE);
+                if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE);
             } else {
-                 playSoundEffect(SOUND_EFFECTS.GAME.WORD_PURCHASE); // Sonido de compra normal
+                 if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GAME.WORD_PURCHASE); // Sonido de compra normal
             }
         } else {
              console.log("Word is already owned or category is full.");
@@ -1838,8 +1865,10 @@ function startThiefMiniChallenge(forcedType = null) {
     if (gameState !== 'PLAYING' || allCategoriesCompleted) return;
     
     setGameState('CHALLENGE_MINI');
-    window.audioSystem.playSceneMusic('boss'); 
-    playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR); // Sonido de aparición
+    if (audioInitialized) {
+        window.audioSystem.playSceneMusic('boss'); 
+        playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR); // Sonido de aparición
+    }
 
     const challengeTypes = ['accent', 'trueFalse', 'tonicSyllable'];
     const type = forcedType || challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
@@ -1911,7 +1940,9 @@ function startThiefMiniChallenge(forcedType = null) {
 function endThiefMiniChallenge(playerAnswer) {
     clearInterval(challengeTimerInterval);
     
-    window.audioSystem.playSceneMusic('playing'); // Vuelve a la música principal
+    if (audioInitialized) {
+        window.audioSystem.playSceneMusic('playing'); // Vuelve a la música principal
+    }
     
     const modal = document.getElementById('thiefMiniChallengeModal');
     modal.classList.add('hidden');
@@ -1952,11 +1983,11 @@ function endThiefMiniChallenge(playerAnswer) {
         playerStats.dineroGanadoTotal += reward;
         grammaticalContamination = Math.max(0, grammaticalContamination - 5); 
         
-        playSoundEffect(SOUND_EFFECTS.GAME.LEVEL_UP); // Sonido de acierto/recompensa
+        if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GAME.LEVEL_UP); // Sonido de acierto/recompensa
         showModal(`¡Correcto! Ganas ${reward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}.`);
     } else {
         grammaticalContamination = Math.min(grammaticalContamination + 15, CORRUPTION_MAX); 
-        playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
+        if (audioInitialized) playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
         handleChallengeFailure(failureReason);
     }
      if (gameState !== 'GAME_OVER') {
@@ -1980,7 +2011,7 @@ function handleChallengeFailure(reason) {
             if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) { 
                 consecutiveFailures--;
                 showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
-                playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
+                if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                 updateUI(); 
             }
             guardianBlessingTimeout = null; 
@@ -1988,8 +2019,10 @@ function handleChallengeFailure(reason) {
     }
 
     checkForThiefDeal(() => {
-        window.audioSystem.playSceneMusic('thief'); // Música de tensión
-        playSoundEffect(SOUND_EFFECTS.THIEF.TAUNT);
+        if (audioInitialized) {
+            window.audioSystem.playSceneMusic('thief'); // Música de tensión
+            playSoundEffect(SOUND_EFFECTS.THIEF.TAUNT);
+        }
         showWhisperModal(BOSS_TAUNT, () => {
             showFailureMessage(reason);
         });
@@ -2076,8 +2109,10 @@ function startBossChallenge(level) {
     activeWhisper = "";
     
     setGameState('CHALLENGE_BOSS');
-    window.audioSystem.playSceneMusic('boss');
-    playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
+    if (audioInitialized) {
+        window.audioSystem.playSceneMusic('boss');
+        playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
+    }
     
     currentBossLevel = level;
     const sentencesForLevel = BOSS_SENTENCES[level] || BOSS_SENTENCES[Object.keys(BOSS_SENTENCES).pop()]; 
@@ -2225,10 +2260,12 @@ async function endBossChallenge(isCorrect) {
         const finalDialogue = BOSS_VICTORY_DIALOGUES[Math.floor(Math.random() * BOSS_VICTORY_DIALOGUES.length)];
         const resultMessage = `¡VICTORIA! Ganas un ${Math.floor(rewardPercentage * 100)}% de tu dinero (+${moneyReward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}).`;
         
-        playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY); // Sonido de victoria
+        if (audioInitialized) {
+            playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY); // Sonido de victoria
+        }
         
         typeEffect(dialogueEl, finalDialogue, () => hideBossModal(() => {
-            window.audioSystem.playSceneMusic('playing'); 
+            if (audioInitialized) window.audioSystem.playSceneMusic('playing'); 
             showModal(resultMessage); 
         }));
     } else {
@@ -2245,7 +2282,7 @@ async function endBossChallenge(isCorrect) {
                 if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) {
                     consecutiveFailures--;
                     showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
-                    playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
+                    if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                     updateUI();
                 }
                 guardianBlessingTimeout = null;
@@ -2264,10 +2301,12 @@ async function endBossChallenge(isCorrect) {
             const finalDialogue = BOSS_DEFEAT_DIALOGUES[Math.floor(Math.random() * BOSS_DEFEAT_DIALOGUES.length)];
             const resultMessage = `¡DERROTA! El Ladrón te roba ${Math.floor(moneyLost).toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}. Pierdes 1 vida.`;
             
-            playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
+            if (audioInitialized) {
+                playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
+            }
             
             typeEffect(dialogueEl, finalDialogue, () => hideBossModal(() => {
-                window.audioSystem.playSceneMusic('playing'); 
+                if (audioInitialized) window.audioSystem.playSceneMusic('playing'); 
                 if (consecutiveFailures >= 3) {
                      if (guardianBlessingTimeout) { 
                         clearTimeout(guardianBlessingTimeout);
@@ -2312,8 +2351,10 @@ function triggerRandomEvent() {
     else if (rand < baseMiniChallengeChance + baseThiefAttackChance) {
         console.log("Triggering random thief attack.");
         
-        window.audioSystem.playSceneMusic('thief');
-        playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
+        if (audioInitialized) {
+            window.audioSystem.playSceneMusic('thief');
+            playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
+        }
 
         let attackType;
         
@@ -2341,7 +2382,7 @@ function triggerRandomEvent() {
                                     if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) {
                                         consecutiveFailures--;
                                         showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
-                                        playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
+                                        if (audioInitialized) playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                                         updateUI();
                                     }
                                     guardianBlessingTimeout = null;
@@ -2361,8 +2402,8 @@ function triggerRandomEvent() {
                         return { title: 'Robo de Ingresos', effectText: `¡Te ha robado el ${Math.floor(stolenFactor*100)}% de tu dinero! (-${moneyStolen.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`, onComplete: () => {
                             playerMoney -= moneyStolen;
                             updateUI();
-                            playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
-                            window.audioSystem.playSceneMusic('playing', 0.5);
+                            if (audioInitialized) playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                            if (audioInitialized) window.audioSystem.playSceneMusic('playing', 0.5);
                         }};
                     case 'wordTheft':
                         const ownableCategories = Object.keys(playerWords).filter(cat => cat !== "Sobreesdrújulas" && playerWords[cat]?.count > 0);
@@ -2380,8 +2421,8 @@ function triggerRandomEvent() {
                                 }
                                 playerWords[randomCategory].count -= wordsToStealCount;
                                 updateUI();
-                                playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
-                                window.audioSystem.playSceneMusic('playing', 0.5);
+                                if (audioInitialized) playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                                if (audioInitialized) window.audioSystem.playSceneMusic('playing', 0.5);
                             }};
                         } else { 
                              const stolenFactorFallback = 0.15 * difficultyFactor;
@@ -2389,8 +2430,8 @@ function triggerRandomEvent() {
                              return { title: 'Robo de Ingresos', effectText: `Iba a robar palabras, pero no tienes. Me conformo con ${moneyStolenFallback.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}`, onComplete: () => {
                                 playerMoney -= moneyStolenFallback;
                                 updateUI();
-                                playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
-                                window.audioSystem.playSceneMusic('playing', 0.5);
+                                if (audioInitialized) playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                                if (audioInitialized) window.audioSystem.playSceneMusic('playing', 0.5);
                             }};
                         }
                 }
@@ -2415,8 +2456,10 @@ function triggerGuardianGift() {
     let moneyGained = 0;
     const difficultyFactor = calculateDynamicDifficulty();
 
-    window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
-    playSoundEffect(SOUND_EFFECTS.GUARDIAN.GIFT);
+    if (audioInitialized) {
+        window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
+        playSoundEffect(SOUND_EFFECTS.GUARDIAN.GIFT);
+    }
 
     if (giftRand < 0.85) { 
          console.log("Guardian gift: Wealth.");
@@ -2463,7 +2506,7 @@ function showGuardianGiftModal(dialogue, effectText) {
     typeEffect(dialogueEl, dialogue, () => {
         effectTextEl.textContent = effectText;
         effectDiv.classList.remove('hidden');
-        window.audioSystem.playSceneMusic('playing', 0.5); // Vuelve a la música de juego tras el diálogo
+        if (audioInitialized) window.audioSystem.playSceneMusic('playing', 0.5); // Vuelve a la música de juego tras el diálogo
     }, 4000); 
 }
 
@@ -2483,7 +2526,7 @@ function showRandomThiefAttackModal(getAttackDetailsCallback) {
     effectDiv.classList.add('hidden');
     
     setGameState('CINEMATIC');
-    window.audioSystem.playSceneMusic('thief'); 
+    if (audioInitialized) window.audioSystem.playSceneMusic('thief'); 
 
     modal.classList.remove('hidden');
     modal.classList.add('flex'); 
@@ -2502,7 +2545,7 @@ function showRandomThiefAttackModal(getAttackDetailsCallback) {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             if (gameState === 'CINEMATIC' && currentView === 'game') { 
-                 window.audioSystem.playSceneMusic('playing', 0.5);
+                 if (audioInitialized) window.audioSystem.playSceneMusic('playing', 0.5);
                  setGameState('PLAYING');
             }
         }, 300);
@@ -2521,7 +2564,7 @@ function showWhisperModal(dialogue, onCompleteCallback = null) {
     document.getElementById('thiefWhisperIcon').innerHTML = ICON_LIBRARY.bossIcon;
     
     setGameState('CINEMATIC');
-    window.audioSystem.playSceneMusic('thief'); 
+    if (audioInitialized) window.audioSystem.playSceneMusic('thief'); 
 
     modal.classList.remove('hidden', 'opacity-0');
     modal.classList.add('flex'); 
@@ -2537,7 +2580,7 @@ function checkForThiefDeal(callbackOnNoDeal) {
     if ( (3 - consecutiveFailures) === 1 && gameState !== 'GAME_OVER') {
          console.log("Checking for thief deal.");
         setGameState('CINEMATIC');
-        window.audioSystem.playSceneMusic('thief'); 
+        if (audioInitialized) window.audioSystem.playSceneMusic('thief'); 
 
         // Identificar la categoría más valiosa para el trato
         let bestCategory = null;
@@ -2575,7 +2618,7 @@ function checkForThiefDeal(callbackOnNoDeal) {
                 playerWords[bestCategory] = { count: 0, list: [] };
                 modal.classList.add('hidden', 'opacity-0');
                 modal.classList.remove('flex');
-                window.audioSystem.playSceneMusic('playing'); 
+                if (audioInitialized) window.audioSystem.playSceneMusic('playing'); 
                 showModal("Trato aceptado. Has recuperado una vida, pero tus palabras han desaparecido.");
                  updateUI();
             };
@@ -2586,12 +2629,12 @@ function checkForThiefDeal(callbackOnNoDeal) {
                 modal.classList.add('hidden', 'opacity-0');
                 modal.classList.remove('flex');
                 
-                window.audioSystem.playSceneMusic('playing'); 
+                if (audioInitialized) window.audioSystem.playSceneMusic('playing'); 
                 if (callbackOnNoDeal) callbackOnNoDeal();
             };
         } else {
              console.log("No category eligible for deal.");
-             window.audioSystem.playSceneMusic('playing'); 
+             if (audioInitialized) window.audioSystem.playSceneMusic('playing'); 
              if (gameState === 'CINEMATIC') setGameState('PLAYING');
              if (callbackOnNoDeal) callbackOnNoDeal();
         }
@@ -2715,32 +2758,52 @@ function stopRulesRotator() {
 // --- Funciones de Audio Simplificadas para usar DynamicAudioSystem ---
 
 /**
- * Inicializa el contexto de audio y el sistema dinámico (deepseek_javascript_20251203_38c99a.js).
+ * Inicializa el contexto de audio y el sistema dinámico.
+ * NOTA: Esto solo crea las clases y componentes, pero NO inicia el AudioContext (Tone.start)
+ * para esperar un gesto del usuario.
  */
 async function initializeAudio() {
     if (audioInitialized) return;
     
     try {
-        await Tone.start();
-        console.log("Audio context started.");
-        
-        // Inicializar sistemas de audio
+        // Inicializar sistemas de audio (sin iniciar Tone.context)
         window.audioSystem = new DynamicAudioSystem();
         window.positionalAudio = new PositionalAudio();
         window.audioSystem.startAllParts(); // Inicializa los loops silenciados
         
         // Añadir controles de audio
         addAudioControls();
-        setupAudioEvents(); // Para conectar eventos a playSoundEffect
+        setupAudioEvents(); 
         
         audioInitialized = true;
+        console.log("Audio systems initialized (Tone.context NOT started).");
     } catch (e) {
-        console.error("Error initializing enhanced audio:", e);
+        console.error("Error initializing audio systems:", e);
     }
 }
 
 /**
- * Configura eventos de audio para reaccionar a la lógica del juego (deepseek_javascript_20251203_38c99a.js).
+ * Inicia el contexto de audio. Debe ser llamado por un gesto del usuario.
+ */
+async function startAudioContext() {
+    if (Tone.context.state !== 'running') {
+        try {
+            await Tone.start();
+            console.log("Audio context successfully started/resumed by user gesture.");
+            // Una vez iniciado, reproducir la música de la escena actual
+            if (gameState === 'STARTUP') {
+                 window.audioSystem.playSceneMusic('startup');
+            } else if (gameState === 'PLAYING') {
+                 window.audioSystem.playSceneMusic('playing');
+            }
+        } catch(e) {
+             console.error("Error starting/resuming audio context:", e);
+        }
+    }
+}
+
+/**
+ * Configura eventos de audio para reaccionar a la lógica del juego.
  * Nota: El evento 'transitionend' requiere que la barra de tiempo exista en el HTML.
  */
 function setupAudioEvents() {
@@ -2749,21 +2812,18 @@ function setupAudioEvents() {
         bar.addEventListener('transitionend', (e) => {
             if (e.propertyName === 'width') {
                 const width = parseFloat(e.target.style.width);
-                if (width < 30 && gameState === 'PLAYING') {
+                if (width < 30 && gameState === 'PLAYING' && audioInitialized) {
                     // Evita disparos constantes si el timer está atascado
                     if (!window.audioSystem.warningPlayed) {
                         window.audioSystem.addStinger('warning');
                         window.audioSystem.warningPlayed = true;
                     }
                 } else if (width > 30) {
-                    window.audioSystem.warningPlayed = false;
+                    if (window.audioSystem) window.audioSystem.warningPlayed = false;
                 }
             }
         });
     }
-
-    // Eventos de aparición (simulados aquí, podrían ser disparados por setGameState)
-    // No se implementa aquí para evitar doble lógica, ya que setGameState maneja la música.
 }
 
 /**
@@ -2806,19 +2866,6 @@ function addAudioControls() {
             window.audioSystem.sfxVolume.volume.value = volume;
         }
     });
-}
-
-// Las funciones stopAllMusic, playMainMusic, playThiefMusic ahora están obsoletas o se reemplazan
-// por los métodos de DynamicAudioSystem. Se mantienen solo como referencias o placeholders.
-
-function stopAllMusic(duration = 0.5) {
-    if (audioSystem) audioSystem.stopAllMusic(duration);
-}
-function playMainMusic() {
-    if (audioSystem) audioSystem.playSceneMusic('playing');
-}
-function playThiefMusic() {
-    if (audioSystem) audioSystem.playSceneMusic('thief');
 }
 
 /**
@@ -2867,19 +2914,13 @@ async function startGameCommon(shouldLoad = true) {
  */
 function setupEventListeners() {
     document.getElementById('playButton').addEventListener('click', async () => {
-        // Inicializar y reanudar audio en la primera interacción
+        // 1. Iniciar AudioContext (si no se ha hecho) con el gesto del usuario
         if (!audioInitialized) {
-            await initializeAudio(); 
+            await initializeAudio(); // Solo crea las clases
         }
-        if (Tone.context.state !== 'running') {
-            try {
-                await Tone.start();
-                console.log("Audio context started/resumed by Play button.");
-            } catch(e) {
-                 console.error("Error starting/resuming audio context:", e);
-            }
-        }
+        await startAudioContext(); // Inicia Tone.context
         
+        // 2. Mostrar modal de nombre
         document.getElementById('nameInputModal').classList.remove('hidden');
         document.getElementById('nameInputModal').classList.add('flex');
         document.getElementById('playerNameInput').focus();
@@ -3011,16 +3052,18 @@ function setupEventListeners() {
     const muteButton = document.getElementById('muteButton');
     muteButton.innerHTML = ICON_LIBRARY.speakerOn;
     muteButton.addEventListener('click', async () => { 
-        if (isMuted && !audioInitialized) {
+        // 1. Asegurar que el contexto de audio esté inicializado y corriendo
+        if (!audioInitialized) {
             await initializeAudio(); 
         }
-        
+        await startAudioContext(); // Necesario si es la primera interacción o si se pausó
+
+        // 2. Toglear silencio y controlar la música
         isMuted = !isMuted;
         Tone.Destination.mute = isMuted;
         muteButton.innerHTML = isMuted ? ICON_LIBRARY.speakerOff : ICON_LIBRARY.speakerOn;
         
         if(!isMuted) {
-             if (Tone.context.state !== 'running') await Tone.start();
             // Reanudar música de la escena actual
             if(gameState === 'PLAYING' || gameState === 'STARTUP') {
                 window.audioSystem.playSceneMusic(gameState === 'PLAYING' ? 'playing' : 'startup');
@@ -3038,10 +3081,11 @@ function setupEventListeners() {
 
 /**
  * Inicializa el juego al cargar la ventana.
+ * Solo se configura el estado de la UI y los listeners, NO se inicia el audio.
  */
 async function initGame() {
     changeView('startup'); 
-    await initializeAudio(); 
+    await initializeAudio(); // Solo crea las clases, no inicia el contexto.
     setupEventListeners();
 }
 
