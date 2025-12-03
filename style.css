@@ -1,0 +1,242 @@
+/* =======================================================================
+   ESTILOS GENERALES Y FUENTES
+=======================================================================
+*/
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+.card {
+    background-color: #ffffff;
+    border-color: #e5e7eb;
+}
+
+/* =======================================================================
+   UTILIDADES
+=======================================================================
+*/
+
+/* Ocultar barra de desplazamiento */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* =======================================================================
+   ANIMACIONES ESPECIALES (Arcoíris, Brillos, etc.)
+=======================================================================
+*/
+
+/* Texto Arcoíris (Christopher / Bonus) */
+.rainbow-text {
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rainbow 2s ease-in-out infinite;
+}
+
+@keyframes rainbow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Texto de Súper Valor */
+.super-value-text {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+/* Borde Arcoíris Animado */
+.rainbow-border {
+    border: 4px solid;
+    border-image-slice: 1;
+    border-image-source: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+    animation: rainbow-border-animation 2s linear infinite;
+}
+
+@keyframes rainbow-border-animation {
+    0% { border-image-source: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); }
+    50% { border-image-source: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); }
+    100% { border-image-source: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); }
+}
+
+/* Botón con Fondo Arcoíris */
+.rainbow-bg-button {
+    background: linear-gradient(to right, #8b5cf6, #d946ef, #ef4444, #f97316, #eab308, #84cc16, #22c55e, #14b8a6, #06b6d4, #3b82f6);
+    background-size: 300% auto;
+    animation: rainbow-bg-animation 4s linear infinite;
+    color: white;
+    border: none;
+}
+
+@keyframes rainbow-bg-animation {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+}
+
+/* =======================================================================
+   FONDOS DE MODALES
+=======================================================================
+*/
+
+/* Fondo genérico con desenfoque */
+#startupScreen, .modal-bg {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+/* Fondo oscuro para el Jefe/Ladrón */
+.boss-modal-bg {
+    background-color: rgba(17, 24, 39, 0.9);
+    backdrop-filter: blur(8px);
+}
+
+/* Fondo claro/místico para Christopher/Guardián */
+.christopher-modal-bg {
+    background-color: rgba(224, 231, 255, 0.9);
+    backdrop-filter: blur(8px);
+}
+
+/* =======================================================================
+   EFECTOS DE TEXTO (Glitch, Parpadeo)
+=======================================================================
+*/
+
+/* Contenedor Glitch */
+.glitch-wrapper {
+    position: relative;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #f3f4f6; 
+    overflow: hidden;
+    clip-path: inset(50% 50% 50% 50%);
+}
+
+.glitch-text::before {
+    left: -2px;
+    text-shadow: 2px 0 blue;
+    animation: glitch-anim-2 1.5s infinite linear alternate-reverse;
+}
+
+.glitch-text::after {
+    left: 2px;
+    text-shadow: -2px 0 red;
+    animation: glitch-anim-1 2s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-anim-1 {
+    0%, 100% { clip-path: inset(40% 0 61% 0); }
+    25% { clip-path: inset(15% 0 75% 0); }
+    50% { clip-path: inset(50% 0 45% 0); }
+    75% { clip-path: inset(5% 0 85% 0); }
+}
+@keyframes glitch-anim-2 {
+    0%, 100% { clip-path: inset(65% 0 30% 0); }
+    25% { clip-path: inset(80% 0 15% 0); }
+    50% { clip-path: inset(40% 0 50% 0); }
+    75% { clip-path: inset(90% 0 5% 0); }
+}
+
+/* Animación de Parpadeo Simple */
+.flicker-anim {
+    animation: flicker-animation 1s infinite;
+}
+
+@keyframes flicker-animation {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Texto "Susurrado" (Oscuro y parpadeante) */
+.whisper-text {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #111827;
+    animation: flicker-dark 2s infinite;
+    text-align: center;
+}
+
+@keyframes flicker-dark {
+    0%, 100% {
+        text-shadow: 0 0 5px rgba(220, 38, 38, 0.4), 0 0 2px rgba(0,0,0,0.5);
+        opacity: 0.8;
+    }
+    50% {
+        text-shadow: 0 0 15px rgba(220, 38, 38, 0.8), 0 0 5px rgba(0,0,0,0.7);
+        opacity: 1;
+    }
+}
+
+.corrupted-text-effect {
+    animation: flicker-dark 2s infinite;
+    font-weight: bold;
+}
+
+/* =======================================================================
+   OTROS EFECTOS
+=======================================================================
+*/
+
+/* Resplandor Púrpura (Limbo) */
+.limbo-glow {
+    box-shadow: 0 0 12px 4px rgba(139, 92, 246, 0.7);
+    animation: pulse-purple 2s infinite;
+}
+@keyframes pulse-purple {
+    50% { box-shadow: 0 0 16px 6px rgba(139, 92, 246, 0.9); }
+}
+
+/* Spinner de Carga */
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #f59e0b;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Animación de Temblor (Error) */
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+.shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+}
+
+/* =======================================================================
+   DEGRADADOS DE INVENTARIO
+=======================================================================
+*/
+.bg-gradient-bronze { background-image: linear-gradient(to top right, #f3e9d2, #c6a49a); }
+.bg-gradient-plata { background-image: linear-gradient(to top right, #e0e0e0, #bdbdbd); }
+.bg-gradient-oro { background-image: linear-gradient(to top right, #fff176, #ffd54f); }
+.bg-gradient-platino { background-image: linear-gradient(to top right, #e0f7fa, #b2ebf2); }
+.bg-gradient-diamante { background-image: linear-gradient(to top right, #e1f5fe, #81d4fa); }
+.bg-gradient-maestro { background-image: linear-gradient(to top right, #f3e5f5, #e1bee7); }
+.bg-gradient-leyenda { background-image: linear-gradient(to top right, #ffebee, #ffcdd2); }
