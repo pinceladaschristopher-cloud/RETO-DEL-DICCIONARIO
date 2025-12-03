@@ -1,4 +1,243 @@
 // =======================================================================
+// CONSTANTES DE JUEGO (INTEGRADAS DE deepseek_*.js)
+// =======================================================================
+
+/**
+ * Niveles predefinidos de dificultad (no usados directamente, sino como referencia)
+ * Integrado de deepseek_javascript_20251203_0ff230.js
+ */
+const DIFFICULTY_LEVELS = {
+    FACIL: {
+        multiplicadorPrecio: 0.8,
+        tiempoPalabra: 4000,
+        ingresoPasivoMultiplicador: 1.2,
+        frecuenciaAtaques: 0.15,
+        penalizacionFallos: 0.5,
+        recompensaBoss: 1.5
+    },
+    NORMAL: {
+        multiplicadorPrecio: 1.0,
+        tiempoPalabra: 3000,
+        ingresoPasivoMultiplicador: 1.0,
+        frecuenciaAtaques: 0.20,
+        penalizacionFallos: 1.0,
+        recompensaBoss: 1.0
+    },
+    DIFICIL: {
+        multiplicadorPrecio: 1.3,
+        tiempoPalabra: 2500,
+        ingresoPasivoMultiplicador: 0.8,
+        frecuenciaAtaques: 0.30,
+        penalizacionFallos: 1.5,
+        recompensaBoss: 0.8
+    },
+    EXTREMO: {
+        multiplicadorPrecio: 1.8,
+        tiempoPalabra: 2000,
+        ingresoPasivoMultiplicador: 0.6,
+        frecuenciaAtaques: 0.40,
+        penalizacionFallos: 2.0,
+        recompensaBoss: 0.6,
+        palabrasCorruptasFrecuencia: 0.25
+    }
+};
+
+/**
+ * Desafíos avanzados para futuras fases.
+ * Integrado de deepseek_javascript_20251203_47b045.js
+ */
+const ADVANCED_CHALLENGES = {
+    PUNTUACION: [
+        {
+            sentence: "No se que hacer dijo ella",
+            options: ["No sé qué hacer, dijo ella.", "No se que hacer, dijo ella.", "No sé qué hacer dijo ella."],
+            correct: 0
+        }
+    ],
+    MAYUSCULAS: [
+        {
+            sentence: "el señor garcía vive en madrid",
+            options: ["El señor García vive en Madrid.", "El Señor García vive en Madrid.", "el señor García vive en Madrid."],
+            correct: 0
+        }
+    ],
+    CONJUGACION: [
+        {
+            verb: "Haber",
+            tense: "Presente subjuntivo",
+            person: "Yo",
+            options: ["Haya", "Habe", "Habo"],
+            correct: 0
+        }
+    ]
+};
+
+/**
+ * Items de la tienda para futuras fases.
+ * Integrado de deepseek_javascript_20251203_6e1c53.js
+ */
+const SHOP_ITEMS = [
+    {
+        id: 'escudo_temporal',
+        name: 'Escudo Gramatical',
+        description: 'Protección contra palabras corruptas por 60 segundos',
+        price: 50000,
+        duration: 60000,
+        effect: () => { /* activateShield(); */ }
+    },
+    {
+        id: 'deteccion_avanzada',
+        name: 'Detección Avanzada',
+        description: 'Revela la categoría de palabras antes de comprar por 45 segundos',
+        price: 35000,
+        duration: 45000,
+        effect: () => { /* activateAdvancedDetection(); */ }
+    },
+    {
+        id: 'multiplicador_x3',
+        name: 'Multiplicador x3',
+        description: 'Triplica el ingreso pasivo por 30 segundos',
+        price: 75000,
+        duration: 30000,
+        effect: () => { /* activateTripleIncome(); */ }
+    },
+    {
+        id: 'revivir',
+        name: 'Amuleto de Revivir',
+        description: 'Te permite continuar tras un Game Over',
+        price: 100000,
+        singleUse: true,
+        effect: () => { /* addReviveToken(); */ }
+    }
+];
+
+/**
+ * Desafíos diarios para futuras fases.
+ * Integrado de deepseek_javascript_20251203_4e1245.js
+ */
+const DAILY_CHALLENGES = [
+    {
+        id: 'compra_rapida',
+        title: 'Compra Rápida',
+        description: 'Compra 10 palabras en menos de 2 minutos',
+        reward: 25000,
+        timeLimit: 120000
+    },
+    {
+        id: 'sin_corrupcion',
+        title: 'Puro',
+        description: 'No compres palabras corruptas durante 5 minutos',
+        reward: 30000,
+        timeLimit: 300000
+    },
+    {
+        id: 'categoria_maestra',
+        title: 'Maestro de Categoría',
+        description: 'Completa una categoría entera',
+        reward: 50000,
+        requires: 'category_completion'
+    }
+];
+
+/**
+ * Eventos especiales para futuras fases.
+ * Integrado de deepseek_javascript_20251203_4dcd9b.js
+ */
+const SPECIAL_EVENTS = {
+    TORMENTA_GRAMATICAL: {
+        name: 'Tormenta Gramatical',
+        description: '¡Las palabras aparecen al doble de velocidad por 30 segundos!',
+        duration: 30000,
+        effect: () => { /* activateWordStorm(); */ },
+        rewardMultiplier: 2.0
+    },
+    INVASION_CORRUPTA: {
+        name: 'Invasión Corrupta',
+        description: 'Solo aparecen palabras corruptas por 20 segundos',
+        duration: 20000,
+        effect: () => { /* activateCorruptionInvasion(); */ },
+        penalty: 'Pierdes 1 vida si compras alguna'
+    },
+    BONUS_CATEGORICO: {
+        name: 'Bonus Categórico',
+        description: 'Todas las palabras de una categoría valen 3x más',
+        duration: 40000,
+        effect: () => { 
+            const categories = Object.keys(WORD_DATABASE).filter(c => c !== "Sobreesdrújulas");
+            const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+            /* activateCategoryBonus(randomCategory); */
+        }
+    }
+};
+
+/**
+ * Penalizaciones permanentes para futuras fases (tras Game Over o derrotas de Jefe/fallos).
+ * Integrado de deepseek_javascript_20251203_33a262.js
+ */
+const PERMANENT_PENALTIES = [
+    {
+        id: 'memoria_danada',
+        name: 'Memoria Dañada',
+        description: 'Olvidas 3 palabras aleatorias de tu colección',
+        trigger: 'game_over',
+        effect: () => { /* removeRandomWords(3); */ }
+    },
+    {
+        id: 'confusion_gramatical',
+        name: 'Confusión Gramatical',
+        description: 'Las categorías de las palabras aparecen mezcladas',
+        trigger: 'consecutive_failures_3',
+        duration: 300000,
+        effect: () => { /* activateCategoryConfusion(); */ }
+    },
+    {
+        id: 'maldicion_ortografica',
+        name: 'Maldición Ortográfica',
+        description: 'Todas las palabras cuestan 25% más',
+        trigger: 'boss_defeat',
+        duration: 600000,
+        effect: () => { /* activatePriceCurse(); */ }
+    }
+];
+
+/**
+ * Logros del jugador para futuras fases.
+ * Integrado de deepseek_javascript_20251203_093d18.js
+ */
+const ACHIEVEMENTS = {
+    'PRIMER_PASO': { 
+        name: 'Primer Paso', 
+        description: 'Compra tu primera palabra',
+        reward: 1000,
+        condition: (stats) => stats.palabrasCompradasTotal >= 1 
+    },
+    'COLECCIONISTA': { 
+        name: 'Coleccionista', 
+        description: 'Compra 50 palabras únicas',
+        reward: 5000,
+        condition: (stats) => stats.palabrasUnicasCompradas >= 50 
+    },
+    'GRAMATICO_EXPERTO': { 
+        name: 'Gramático Experto', 
+        description: 'Derrota a 3 jefes sin fallos',
+        reward: 15000,
+        condition: (stats) => stats.jefesDerrotadosSinFallos >= 3 
+    },
+    'RESISTENTE': { 
+        name: 'Resistente', 
+        description: 'Juega durante 30 minutos',
+        reward: 10000,
+        condition: (stats) => stats.tiempoJuego >= 1800000 
+    },
+    'INMUNE': { 
+        name: 'Inmune', 
+        description: 'Rechaza 5 tratos del ladrón',
+        reward: 7500,
+        condition: (stats) => stats.tratosRechazados >= 5 
+    }
+};
+
+// =======================================================================
 // CONFIGURACIÓN Y ESTADO DEL JUEGO
 // =======================================================================
 let gameState = 'STARTUP'; 
@@ -11,11 +250,36 @@ let currentWord = {}; // Palabra actual en pantalla
 let passiveIncome = 0;
 let initialCredits = 500; 
 let consecutiveFailures = 0; // Contador de fallos (vidas)
+
+/**
+ * Estadísticas de juego detalladas.
+ * Integrado y ampliado de deepseek_javascript_20251203_093d18.js
+ */
 let playerStats = {
-    wordsBought: 0,
+    wordsBought: 0, // Palabras compradas en la partida actual
     challengesWon: 0,
     bossesDefeatedCount: 0,
+    // Nuevas estadísticas (persisten entre partidas si se implementa guardado):
+    palabrasCompradasTotal: 0,
+    palabrasUnicasCompradas: 0,
+    tiempoJuego: 0, // En milisegundos
+    desafiosCompletados: 0,
+    jefesDerrotadosSinFallos: 0,
+    limboActivaciones: 0,
+    palabrasCorruptasEvitadas: 0,
+    rachaMaxima: 0,
+    dineroGanadoTotal: 0,
+    tratosRechazados: 0,
+    jefesDerrotadosSeguidos: 0,
+    rachaBossSinFallos: 0, // Para el logro Gramático Experto
 };
+
+/**
+ * Variable que mide la corrupción del juego.
+ * Integrado de deepseek_javascript_20251203_b06cf0.js
+ */
+let grammaticalContamination = 0; 
+let contaminationIncreaseInterval = null; // Intervalo para el aumento de corrupción por tiempo
 
 // =======================================================================
 // VARIABLES DE BUCLE Y TIEMPO
@@ -27,6 +291,7 @@ let wordDisplayTimeout;
 let challengeTimerInterval;
 let guardianBlessingTimeout = null; // Temporizador para el regalo de vida del Guardián
 let randomEventInterval = null; // Intervalo para eventos aleatorios
+let timeElapsedInGame = 0; // Tiempo total de juego en la partida actual
 
 // =======================================================================
 // VARIABLES DE BOOSTS Y EVENTOS
@@ -39,6 +304,8 @@ let dealRejectedForLimboBoost = false; // Bandera para boost adicional por recha
 let hasHadFirstRandomAttackThisPartida = false; // Garantiza un ataque de robo de vida en el primer juego
 let confusionModeEndTime = 0; // Modo de confusión (no usado actualmente)
 let guardianBlessingAvailable = true; // Si la bendición de Guardián está disponible
+let priceCurseEndTime = 0; // Fin de la maldición de precio
+let tripleIncomeEndTime = 0; // Fin del multiplicador x3
 
 // =======================================================================
 // VARIABLES DE CONTROL DE UI Y FLUJO
@@ -77,6 +344,8 @@ const PRICE_PER_LETTER = 15;
 const SUPER_VALUE_MULTIPLIER = 2;
 const INFLATION_FACTOR = 100; // Factor para calcular el aumento de valor de las palabras
 const CHALLENGE_REWARDS = { base: 50000 };
+const CORRUPTION_MAX = 100; // Límite de la contaminación
+const CORRUPTION_BASE_INCREASE_PER_SECOND = 0.5; // Aumento base por segundo
 
 // Palabras corruptas (sin tilde) para la fase de susurro
 const CORRUPTED_WORDS = [
@@ -259,6 +528,49 @@ let WORD_DATABASE = {}; // La base de datos de palabras del juego (se copia de l
 const categoryColors = { "Monosílabos": "text-gray-800", "Agudas": "text-green-800", "Llanas": "text-yellow-800", "Esdrújulas": "text-blue-800", "Sobreesdrújulas": "text-purple-800" };
 const categoryBackgrounds = { "Monosílabos": "bg-gray-200", "Agudas": "bg-green-200", "Llanas": "bg-yellow-200", "Esdrújulas": "bg-blue-200", "Sobreesdrújulas": "bg-purple-200" };
 
+// =======================================================================
+// LÓGICA DE DIFICULTAD Y CORRUPCIÓN
+// =======================================================================
+
+/**
+ * Calcula un factor de dificultad dinámico basado en el progreso del jugador.
+ * Integrado de deepseek_javascript_20251203_f57e6d.js
+ * @returns {number} Factor de dificultad (1.0 = Normal)
+ */
+function calculateDynamicDifficulty() {
+    const baseDifficulty = 1.0;
+    // La dificultad aumenta ligeramente con las palabras compradas (progreso)
+    const wordsBoughtMultiplier = 1 + (playerStats.wordsBought / 500); // 1% de aumento por cada 5 palabras
+    // La dificultad aumenta con el dinero (riqueza)
+    const moneyMultiplier = 1 + (playerMoney / 500000); // 100% de aumento a 500,000
+    // La dificultad aumenta con los jefes derrotados (maestría)
+    const bossesDefeatedMultiplier = 1 + (bossesDefeated.length * 0.2);
+    
+    // El factor de dificultad está limitado para evitar escaladas irrazonables
+    const dynamicFactor = baseDifficulty * wordsBoughtMultiplier * moneyMultiplier * bossesDefeatedMultiplier;
+    return Math.min(dynamicFactor, 5.0); // Límite arbitrario
+}
+
+/**
+ * Actualiza la contaminación gramatical (corrupción del juego).
+ * Integrado de deepseek_javascript_20251203_b06cf0.js
+ */
+function updateGrammaticalContamination() {
+    if (gameState !== 'PLAYING') return;
+
+    // 1. Aumento pasivo con el tiempo (base)
+    // Se aumenta por segundo en el mainGameLoop para mejor control
+    
+    // Asegurar que no exceda el límite
+    grammaticalContamination = Math.min(grammaticalContamination, CORRUPTION_MAX);
+
+    // *Efectos de la contaminación (a implementar en el futuro):*
+    // - Palabras normales pueden aparecer corruptas ocasionalmente (ver generateNewWord)
+    // - Efectos visuales de distorsión (cambios CSS, fuera de esta fase)
+    // - Reducción del ingreso pasivo (implementado en recalculatePassiveIncome)
+}
+
+
 /**
  * Genera la base de datos de palabras para la partida actual, copiándola de la base de datos maestra.
  */
@@ -298,6 +610,10 @@ function recalculatePassiveIncome() {
             passiveIncome += categoryIncome;
         }
     });
+
+    // Penalización por Contaminación Gramatical (aumenta el efecto negativo)
+    const contaminationPenaltyFactor = 1 - (grammaticalContamination / CORRUPTION_MAX) * 0.5; // Máximo 50% de reducción
+    passiveIncome *= contaminationPenaltyFactor;
 }
 
 /**
@@ -319,9 +635,34 @@ function resetGameData() {
     hasHadFirstRandomAttackThisPartida = false;
     confusionModeEndTime = 0;
     guardianBlessingAvailable = true; 
+    priceCurseEndTime = 0;
+    tripleIncomeEndTime = 0;
+    grammaticalContamination = 0; // Resetear corrupción
+    timeElapsedInGame = 0; // Resetear tiempo de partida
     if (guardianBlessingTimeout) clearTimeout(guardianBlessingTimeout); 
     guardianBlessingTimeout = null;
-    playerStats = { wordsBought: 0, challengesWon: 0, bossesDefeatedCount: 0 }; 
+    
+    // Resetear estadísticas de la partida, pero mantener las globales para logros
+    const totalStats = { 
+        palabrasCompradasTotal: playerStats.palabrasCompradasTotal,
+        palabrasUnicasCompradas: playerStats.palabrasUnicasCompradas,
+        tiempoJuego: playerStats.tiempoJuego,
+        desafiosCompletados: playerStats.desafiosCompletados,
+        jefesDerrotadosSinFallos: playerStats.jefesDerrotadosSinFallos,
+        limboActivaciones: playerStats.limboActivaciones,
+        palabrasCorruptasEvitadas: playerStats.palabrasCorruptasEvitadas,
+        rachaMaxima: playerStats.rachaMaxima,
+        dineroGanadoTotal: playerStats.dineroGanadoTotal,
+        tratosRechazados: playerStats.tratosRechazados,
+    };
+    playerStats = { 
+        wordsBought: 0, 
+        challengesWon: 0, 
+        bossesDefeatedCount: 0, 
+        jefesDerrotadosSeguidos: 0,
+        rachaBossSinFallos: 0,
+        ...totalStats 
+    };
     
     generatePlaythroughWordDatabase();
     playerWords = {};
@@ -342,6 +683,8 @@ function resetProgressButKeepLives() {
             playerWords[category].list = [];
         }
     });
+    // Aumentar contaminación por el fallo
+    grammaticalContamination = Math.min(grammaticalContamination + 15, CORRUPTION_MAX); 
     recalculatePassiveIncome();
     updateUI();
 }
@@ -364,9 +707,36 @@ function initializeGameState() {
      dealRejectedForLimboBoost = false;
      limboTriggeredThisLevel = false; 
      guardianBlessingAvailable = true; 
+     grammaticalContamination = 0; // Resetear corrupción
+     priceCurseEndTime = 0;
+     tripleIncomeEndTime = 0;
+     timeElapsedInGame = 0;
+
      if (guardianBlessingTimeout) clearTimeout(guardianBlessingTimeout); 
      guardianBlessingTimeout = null;
-     playerStats = { wordsBought: 0, challengesWon: 0, bossesDefeatedCount: 0 }; 
+     
+     // Mantener estadísticas persistentes
+     const totalStats = { 
+        palabrasCompradasTotal: playerStats.palabrasCompradasTotal,
+        palabrasUnicasCompradas: playerStats.palabrasUnicasCompradas,
+        tiempoJuego: playerStats.tiempoJuego,
+        desafiosCompletados: playerStats.desafiosCompletados,
+        jefesDerrotadosSinFallos: playerStats.jefesDerrotadosSinFallos,
+        limboActivaciones: playerStats.limboActivaciones,
+        palabrasCorruptasEvitadas: playerStats.palabrasCorruptasEvitadas,
+        rachaMaxima: playerStats.rachaMaxima,
+        dineroGanadoTotal: playerStats.dineroGanadoTotal,
+        tratosRechazados: playerStats.tratosRechazados,
+    };
+     playerStats = { 
+         wordsBought: 0, 
+         challengesWon: 0, 
+         bossesDefeatedCount: 0, 
+         jefesDerrotadosSeguidos: 0,
+         rachaBossSinFallos: 0,
+         ...totalStats 
+     }; 
+
      resetGameData();
 }
 
@@ -400,16 +770,22 @@ function setGameState(newState) {
                 } else {
                     console.log("Resuming with current word:", currentWord.word);
                      updateTimerBarUI();
+                     // Recalcular el tiempo restante
+                     const baseDuration = currentWord.isBonus ? 1000 : 3000;
+                     const difficultyFactor = calculateDynamicDifficulty();
+                     const duration = Math.max(1000, baseDuration / difficultyFactor); 
                      const elapsedTime = Date.now() - (currentWord.startTime || Date.now());
-                     const duration = currentWord.isBonus ? 1000 : 3000;
                      const remainingTime = Math.max(0, duration - elapsedTime);
                      startWordDisplayTimer(remainingTime);
                 }
             } else {
                 // Si venimos de un cinemático (modal abierto), retomamos el temporizador si estaba activo.
                 if (currentWord && currentWord.startTime) {
+                    const baseDuration = currentWord.isBonus ? 1000 : 3000;
+                    const difficultyFactor = calculateDynamicDifficulty();
+                    const duration = Math.max(1000, baseDuration / difficultyFactor); 
+                    
                     const elapsedTime = Date.now() - currentWord.startTime;
-                    const duration = currentWord.isBonus ? 1000 : 3000;
                     const remainingTime = Math.max(0, duration - elapsedTime);
                     console.log(`Resuming word timer after cinematic. Remaining: ${remainingTime}ms`);
                     startWordDisplayTimer(remainingTime);
@@ -625,6 +1001,7 @@ function startWordDisplayTimer(duration) {
  */
 function triggerLimboGramatical() {
     setGameState('CINEMATIC');
+    playerStats.limboActivaciones++; // Contador de logros
 
     const modal = document.getElementById('guardianModal');
     const dialogueEl = document.getElementById('guardianDialogue');
@@ -661,22 +1038,30 @@ async function generateNewWord(forceNew = false) {
      console.log(`Generating new word. Force new: ${forceNew}`);
     
     if (forceNew) clearTimeout(wordDisplayTimeout);
-    
-    // 1. Palabra Corrupta (Susurro del Jefe)
-    if (isWhispering && Math.random() < 0.15) { 
-         console.log("Generating corrupted word.");
+
+    // Dificultad Dinámica
+    const difficultyFactor = calculateDynamicDifficulty();
+    const baseWordDuration = 3000;
+    const wordDuration = Math.max(1000, baseWordDuration / difficultyFactor); // La dificultad reduce el tiempo
+
+    // 1. Palabra Corrupta (Susurro del Jefe o por Contaminación)
+    const corruptionChance = 0.15 + (grammaticalContamination / CORRUPTION_MAX) * 0.15; // 15% base + hasta 15% por corrupción
+    let isCorruptedWord = false;
+    if (isWhispering || Math.random() < corruptionChance) { 
+         console.log(`Generating corrupted word. Total corruption chance: ${(corruptionChance * 100).toFixed(2)}%`);
         const randomCorrupted = CORRUPTED_WORDS[Math.floor(Math.random() * CORRUPTED_WORDS.length)];
         const category = randomCorrupted.category;
         const inflationMultiplier = 1 + (passiveIncome / INFLATION_FACTOR); 
         const dynamicValue = Math.floor((HUGE_WORD_DATABASE[category].value + (randomCorrupted.wrong.length * PRICE_PER_LETTER)) * inflationMultiplier);
         currentWord = { word: randomCorrupted.wrong, category: category, value: dynamicValue, isCorrupted: true, rightVersion: randomCorrupted.right, startTime: Date.now() };
+        isCorruptedWord = true;
         updateUI();
-        startWordDisplayTimer(3000);
+        startWordDisplayTimer(wordDuration);
         return;
     }
     
     // 2. Palabra Christopher (Bonus x2)
-    let christopherChance = 0.03; 
+    const christopherChance = 0.03 / difficultyFactor; // La dificultad reduce la probabilidad de bonus
 
     if (Math.random() < christopherChance) {
          console.log("Generating CHRISTOPHER bonus word.");
@@ -730,7 +1115,10 @@ async function generateNewWord(forceNew = false) {
     if (randomCategory !== "Sobreesdrújulas") {
         // Cálculo de la inflación y valor dinámico
         const inflationMultiplier = 1 + (passiveIncome / INFLATION_FACTOR); 
-        dynamicValue = Math.floor((WORD_DATABASE[randomCategory].value + (randomWord.length * PRICE_PER_LETTER)) * inflationMultiplier);
+        let priceFactor = 1.0;
+        if (Date.now() < priceCurseEndTime) priceFactor = 1.25; // Maldición de precio (25% más caro)
+
+        dynamicValue = Math.floor((WORD_DATABASE[randomCategory].value + (randomWord.length * PRICE_PER_LETTER)) * inflationMultiplier * difficultyFactor * priceFactor);
         
         if (isSuperValue) {
             dynamicValue *= SUPER_VALUE_MULTIPLIER;
@@ -740,7 +1128,7 @@ async function generateNewWord(forceNew = false) {
      console.log(`Generated word: ${randomWord} (Category: ${randomCategory}, Value: ${dynamicValue}, SuperValue: ${isSuperValue})`);
     currentWord = { word: randomWord, category: randomCategory, value: dynamicValue, isSuperValue, startTime: Date.now() };
     updateUI();
-    startWordDisplayTimer(3000); 
+    startWordDisplayTimer(wordDuration); 
 }
 
 /**
@@ -750,9 +1138,10 @@ async function generateNewWord(forceNew = false) {
  */
 function formatNumber(num) {
     let parts = num.toFixed(1).toString().split('.');
-    // Reemplazar separador de miles por coma (para formato español/latino)
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return parts.join('.');
+    // Reemplazar separador de miles por punto (para formato español/latino)
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    // Usar coma como separador decimal
+    return parts.join(','); 
 }
 
 /**
@@ -777,6 +1166,8 @@ function updateUI() {
     // Aplicar boosts de Christopher y Limbo al ingreso pasivo
     if (Date.now() < christopherBoostEndTime) finalPassiveIncome *= 2;
     if (Date.now() < limboGramaticalEndTime) finalPassiveIncome *= 1.21;
+    if (Date.now() < tripleIncomeEndTime) finalPassiveIncome *= 3; // Multiplicador x3
+
     document.getElementById('passiveIncome').textContent = formatNumber(finalPassiveIncome);
 
     // Actualizar palabra actual
@@ -915,6 +1306,10 @@ function buyWord() {
          console.log("Buying corrupted word.");
         playerMoney -= currentWord.value;
         corruptedWordsBought++;
+        // Aumentar contaminación al comprar palabra corrupta
+        grammaticalContamination = Math.min(grammaticalContamination + 10, CORRUPTION_MAX);
+        playerStats.palabrasCorruptasEvitadas++; // Contar las compradas como evitadas/identificadas (esto puede ser confuso, se ajustará en el futuro)
+        playerStats.rachaBossSinFallos = 0; // Rompe la racha si se compra corrupta
         showWhisperModal(BOSS_TAUNT);
         updateUI();
         generateNewWord(true);
@@ -947,6 +1342,7 @@ function buyWord() {
         // Manejo de Sobreesdrújulas (Condición de Victoria)
         if (currentWord.category === "Sobreesdrújulas") {
             playerMoney -= currentWord.value;
+            playerStats.dineroGanadoTotal += currentWord.value;
             wordBought = true;
             
             if (categoryData.count === 0) {
@@ -972,9 +1368,19 @@ function buyWord() {
         else if (typeof limit === 'number' && categoryData.count < limit && !categoryData.list.includes(currentWord.word)) {
              console.log("Buying new word.");
             playerMoney -= currentWord.value;
+            playerStats.dineroGanadoTotal += currentWord.value;
             categoryData.count++;
             categoryData.list.push(currentWord.word);
             wordBought = true;
+            
+            // Actualizar estadísticas de palabras únicas y totales
+            playerStats.palabrasCompradasTotal++;
+            playerStats.wordsBought++; // Palabras compradas en la partida
+            
+            // Actualizar palabras únicas (solo si se compra por primera vez en esta partida)
+            // Nota: La lógica de playerStats.palabrasUnicasCompradas requiere persistencia, que no está implementada.
+            // Por ahora, usamos wordsBought como proxy para esta partida.
+
             // Activar boost de Super Valor por categoría
             if (currentWord.isSuperValue) {
                  console.log("Activating Super Value bonus.");
@@ -992,11 +1398,8 @@ function buyWord() {
     if (wordBought) {
         if (!hasBoughtFirstWord) hasBoughtFirstWord = true;
         
-        if (!currentWord.isBonus && currentWord.category !== "Sobreesdrújulas") {
-            playerStats.wordsBought++; 
-             console.log("Total words bought:", playerStats.wordsBought);
-        }
-
+        // La lógica de playerStats.wordsBought ya está en la sección anterior
+        
         document.getElementById('buyButton').disabled = true;
          updateUI();
         clearTimeout(wordDisplayTimeout);
@@ -1011,9 +1414,13 @@ function buyWord() {
                 checkLimboActivation(); 
                 
                 const elapsedTime = Date.now() - currentWord.startTime;
-                const duration = currentWord.isBonus ? 1000 : 3000;
+                // Recalcular la duración de la palabra basada en la dificultad
+                const baseDuration = currentWord.isBonus ? 1000 : 3000;
+                const difficultyFactor = calculateDynamicDifficulty();
+                const wordDuration = Math.max(1000, baseDuration / difficultyFactor);
+
                 // Tiempo restante para la siguiente palabra (un poco más rápido después de la compra)
-                const newRemainingTime = Math.max(100, (duration - elapsedTime) - 1000);
+                const newRemainingTime = Math.max(100, (wordDuration - elapsedTime) - 1000);
                 startWordDisplayTimer(newRemainingTime);
             }
         }, 0); 
@@ -1047,12 +1454,14 @@ function startThiefMiniChallenge(forcedType = null) {
     document.getElementById('thiefMiniChallengeIcon').innerHTML = ICON_LIBRARY.bossIcon;
     inputEl.value = '';
 
+    // El tiempo restante se reduce por la dificultad (el factor es inversamente proporcional a la duración)
+    const difficultyFactor = calculateDynamicDifficulty();
     let timeLeft;
 
     // Lógica específica para cada tipo de reto
     switch (type) {
         case 'accent':
-            timeLeft = 20;
+            timeLeft = Math.max(5, Math.floor(20 / difficultyFactor)); // Tiempo base 20s
             descriptionEl.textContent = 'Escribe la palabra con la tilde correcta:';
             const accentChallenge = MINI_CHALLENGE_WORDS.accent[Math.floor(Math.random() * MINI_CHALLENGE_WORDS.accent.length)];
             currentChallengeData.answer = accentChallenge.right;
@@ -1062,7 +1471,7 @@ function startThiefMiniChallenge(forcedType = null) {
             inputEl.focus();
             break;
         case 'trueFalse':
-            timeLeft = 20;
+            timeLeft = Math.max(5, Math.floor(20 / difficultyFactor)); // Tiempo base 20s
             descriptionEl.textContent = '¿La clasificación es correcta?';
             const tfChallenge = MINI_CHALLENGE_WORDS.trueFalse[Math.floor(Math.random() * MINI_CHALLENGE_WORDS.trueFalse.length)];
             currentChallengeData.answer = tfChallenge.isCorrect;
@@ -1072,7 +1481,7 @@ function startThiefMiniChallenge(forcedType = null) {
             buttonsContainer.classList.add('flex');
             break;
         case 'tonicSyllable': 
-            timeLeft = 25;
+            timeLeft = Math.max(5, Math.floor(25 / difficultyFactor)); // Tiempo base 25s
             descriptionEl.textContent = 'Escribe la sílaba tónica (sin tilde):';
             const tonicChallenge = TONIC_SYLLABLE_WORDS[Math.floor(Math.random() * TONIC_SYLLABLE_WORDS.length)];
             currentChallengeData.answer = tonicChallenge.syllable.toLowerCase(); 
@@ -1138,10 +1547,16 @@ function endThiefMiniChallenge(playerAnswer) {
 
     if (isCorrect) {
         playerStats.challengesWon++; 
+        playerStats.desafiosCompletados++; // Para logros
         const reward = CHALLENGE_REWARDS.base; 
         playerMoney += reward;
+        playerStats.dineroGanadoTotal += reward;
+        // Reducir contaminación al ganar desafío
+        grammaticalContamination = Math.max(0, grammaticalContamination - 5); 
         showModal(`¡Correcto! Ganas ${reward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}.`);
     } else {
+        // Aumentar contaminación por fallo
+        grammaticalContamination = Math.min(grammaticalContamination + 15, CORRUPTION_MAX); 
         handleChallengeFailure(failureReason);
     }
      if (gameState !== 'GAME_OVER') {
@@ -1155,6 +1570,7 @@ function endThiefMiniChallenge(playerAnswer) {
  */
 function handleChallengeFailure(reason) {
     consecutiveFailures++;
+    playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha de jefes sin fallos
     
     // Lógica de Bendición del Guardián (revivir)
     if (consecutiveFailures === 1 && guardianBlessingAvailable) {
@@ -1189,6 +1605,7 @@ function showFailureMessage(reason) {
          }
         document.getElementById('gameOverMessage').textContent = `Fallaste 3 veces. Razón final: ${reason}`;
         changeView('gameOver');
+        // Aquí se podría implementar una penalización permanente, ej: PERMANENT_PENALTIES[0].effect();
     } else {
         resetProgressButKeepLives();
         showModal(`¡Fallo! ${reason}. Has perdido tus palabras. Te quedan ${3 - consecutiveFailures} intentos.`, 4000, false); 
@@ -1282,11 +1699,17 @@ function startBossChallenge(level) {
         sentenceEl.textContent = currentBossSentence.wrong;
         inputEl.focus();
         
-        const totalTime = 60;
+        const difficultyFactor = calculateDynamicDifficulty();
+        const baseTime = 60;
         const timeDebuffPerWord = 0.03; 
         // Reducción de tiempo por palabras corruptas compradas
-        const timeDebuff = totalTime * timeDebuffPerWord * corruptedWordsBought; 
-        let timeLeft = Math.max(15, Math.floor(totalTime - timeDebuff));
+        const timeDebuff = baseTime * timeDebuffPerWord * corruptedWordsBought; 
+        let totalTime = Math.max(15, Math.floor(baseTime - timeDebuff));
+        
+        // Reducción por dificultad
+        totalTime = Math.max(15, Math.floor(totalTime / difficultyFactor)); 
+        
+        let timeLeft = totalTime;
         
         timerEl.textContent = timeLeft;
         bossTimerInterval = setInterval(() => {
@@ -1299,7 +1722,7 @@ function startBossChallenge(level) {
     // Listener para la tecla Enter
     inputEl.onkeyup = (event) => {
         if (event.key === 'Enter') {
-            // Normaliza la respuesta del jugador: elimina espacios extra, minúsculas, elimina tildes para una comparación parcial (no, el juego requiere tildes)
+            // Normaliza la respuesta del jugador: elimina espacios extra
             const normalizedPlayerAnswer = inputEl.value.trim().replace(/\s{2,}/g, ' ');
             const normalizedCorrectAnswer = currentBossSentence.right.trim().replace(/\s{2,}/g, ' ');
             
@@ -1387,11 +1810,26 @@ async function endBossChallenge(isCorrect) {
          console.log(`Boss level ${currentBossLevel} defeated.`);
         bossesDefeated.push(currentBossLevel);
         playerStats.bossesDefeatedCount = bossesDefeated.length;
+        playerStats.jefesDerrotadosSeguidos++; // Aumenta la racha
         
-        // Recompensa en porcentaje del dinero actual
-        const rewardPercentage = { 1: 0.10, 2: 0.15, 3: 0.20, 4: 0.25, 5: 0.30, 6: 0.35, 7: 0.40, 8: 0.50 }[currentBossLevel] || 0.05; 
+        // Actualizar racha de logros
+        if (playerStats.jefesDerrotadosSeguidos > playerStats.rachaBossSinFallos) {
+            playerStats.rachaBossSinFallos = playerStats.jefesDerrotadosSeguidos;
+        }
+
+        // Recompensa en porcentaje del dinero actual, influenciada por la dificultad
+        const difficultyFactor = calculateDynamicDifficulty();
+        // La dificultad reduce la recompensa
+        const rewardFactor = 1 / Math.sqrt(difficultyFactor); 
+        const baseRewardPercentage = { 1: 0.10, 2: 0.15, 3: 0.20, 4: 0.25, 5: 0.30, 6: 0.35, 7: 0.40, 8: 0.50 }[currentBossLevel] || 0.05; 
+        const rewardPercentage = baseRewardPercentage * rewardFactor;
+        
         const moneyReward = Math.floor(playerMoney * rewardPercentage);
         playerMoney += moneyReward;
+        playerStats.dineroGanadoTotal += moneyReward;
+        
+        // Reducir contaminación al derrotar jefe
+        grammaticalContamination = Math.max(0, grammaticalContamination - 25);
         
         const finalDialogue = BOSS_VICTORY_DIALOGUES[Math.floor(Math.random() * BOSS_VICTORY_DIALOGUES.length)];
         const resultMessage = `¡VICTORIA! Ganas un ${Math.floor(rewardPercentage * 100)}% de tu dinero (+${moneyReward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}).`;
@@ -1403,6 +1841,10 @@ async function endBossChallenge(isCorrect) {
     } else {
          console.log(`Boss level ${currentBossLevel} failed.`);
         consecutiveFailures++;
+        playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha
+        
+        // Aumentar contaminación por fallo
+        grammaticalContamination = Math.min(grammaticalContamination + 30, CORRUPTION_MAX); 
         
         // Lógica de Bendición del Guardián (revivir)
         if (consecutiveFailures === 1 && guardianBlessingAvailable) {
@@ -1419,8 +1861,13 @@ async function endBossChallenge(isCorrect) {
         }
 
         checkForThiefDeal(() => {
-            // Penalización en porcentaje del dinero actual
-            let moneyLost = playerMoney * ({ 1: 0.10, 2: 0.20, 3: 0.30, 4: 0.40, 5: 0.50, 6: 0.50, 7: 0.50, 8: 0.50 }[currentBossLevel] || 0.1); 
+            // Penalización en porcentaje del dinero actual, influenciada por la dificultad
+            const difficultyFactor = calculateDynamicDifficulty();
+            const penaltyFactor = 1 * difficultyFactor; // La dificultad aumenta la penalización
+            
+            let baseMoneyLost = playerMoney * ({ 1: 0.10, 2: 0.20, 3: 0.30, 4: 0.40, 5: 0.50, 6: 0.50, 7: 0.50, 8: 0.50 }[currentBossLevel] || 0.1); 
+            let moneyLost = baseMoneyLost * penaltyFactor;
+            
             playerMoney = Math.max(0, playerMoney - Math.floor(moneyLost));
             
             const finalDialogue = BOSS_DEFEAT_DIALOGUES[Math.floor(Math.random() * BOSS_DEFEAT_DIALOGUES.length)];
@@ -1453,15 +1900,25 @@ function triggerRandomEvent() {
     if (!gameStarted || gameState !== 'PLAYING' || !hasBoughtFirstWord || allCategoriesCompleted) return;
 
     const rand = Math.random();
-     console.log(`Random event check. Rand: ${rand.toFixed(2)}`);
-
-    // 1. Mini-Retos (Probabilidad 10%)
-    if (rand < 0.04) { console.log("Triggering mini-challenge: accent"); startThiefMiniChallenge('accent'); }         
-    else if (rand < 0.07) { console.log("Triggering mini-challenge: trueFalse"); startThiefMiniChallenge('trueFalse'); }  
-    else if (rand < 0.10) { console.log("Triggering mini-challenge: tonicSyllable"); startThiefMiniChallenge('tonicSyllable'); } 
+    const difficultyFactor = calculateDynamicDifficulty();
+    const contaminationFactor = (1 + (grammaticalContamination / CORRUPTION_MAX));
     
-    // 2. Ataque Aleatorio del Ladrón (Probabilidad 10%)
-    else if (rand < 0.20) {
+    // Probabilidades base ajustadas por dificultad/contaminación
+    const baseMiniChallengeChance = 0.10;
+    const baseThiefAttackChance = 0.10 * contaminationFactor; // La contaminación aumenta la frecuencia de ataques
+    const baseGuardianGiftChance = 0.20 / difficultyFactor; // La dificultad reduce la frecuencia de regalos
+     console.log(`Random event check. Rand: ${rand.toFixed(2)}. Attack Chance: ${(baseThiefAttackChance * 100).toFixed(2)}%`);
+
+    // 1. Mini-Retos (Probabilidad 10% base)
+    if (rand < baseMiniChallengeChance) { 
+        const challengeRand = Math.random();
+        if (challengeRand < 0.33) { console.log("Triggering mini-challenge: accent"); startThiefMiniChallenge('accent'); }         
+        else if (challengeRand < 0.66) { console.log("Triggering mini-challenge: trueFalse"); startThiefMiniChallenge('trueFalse'); }  
+        else { console.log("Triggering mini-challenge: tonicSyllable"); startThiefMiniChallenge('tonicSyllable'); } 
+    }
+    
+    // 2. Ataque Aleatorio del Ladrón (Probabilidad 10% * Contaminación)
+    else if (rand < baseMiniChallengeChance + baseThiefAttackChance) {
         console.log("Triggering random thief attack.");
         let attackType;
         
@@ -1479,8 +1936,11 @@ function triggerRandomEvent() {
             () => { 
                 switch (attackType) {
                     case 'lifeTheft':
+                        // El robo de vida aumenta la contaminación
+                        grammaticalContamination = Math.min(grammaticalContamination + 10, CORRUPTION_MAX); 
                         return { title: 'Robo de Vidas', effectText: "¡Has perdido 1 vida!", onComplete: () => {
                             consecutiveFailures++;
+                            playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha
                             // Comprobar si se activa la bendición del Guardián
                             if (consecutiveFailures === 1 && guardianBlessingAvailable) {
                                  guardianBlessingAvailable = false;
@@ -1503,8 +1963,10 @@ function triggerRandomEvent() {
                             });
                         }};
                     case 'incomeTheft':
-                        const moneyStolen = Math.floor(playerMoney * 0.15);
-                        return { title: 'Robo de Ingresos', effectText: `¡Te ha robado el 15% de tu dinero! (-${moneyStolen.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`, onComplete: () => {
+                        // Aumenta el robo por dificultad/contaminación
+                        const stolenFactor = 0.15 * difficultyFactor * contaminationFactor; 
+                        const moneyStolen = Math.floor(playerMoney * stolenFactor);
+                        return { title: 'Robo de Ingresos', effectText: `¡Te ha robado el ${Math.floor(stolenFactor*100)}% de tu dinero! (-${moneyStolen.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`, onComplete: () => {
                             playerMoney -= moneyStolen;
                             updateUI();
                         }};
@@ -1514,7 +1976,8 @@ function triggerRandomEvent() {
                         if (ownableCategories.length > 0) {
                             const randomCategory = ownableCategories[Math.floor(Math.random() * ownableCategories.length)];
                             const wordsInCategory = playerWords[randomCategory].list;
-                            const wordsToStealCount = Math.max(1, Math.floor(wordsInCategory.length * 0.10));
+                            // Aumenta el robo por dificultad/contaminación
+                            const wordsToStealCount = Math.max(1, Math.floor(wordsInCategory.length * (0.10 * contaminationFactor)));
                             
                             return { title: 'Robo de Palabras', effectText: `¡Ha robado ${wordsToStealCount} palabra(s) de la categoría ${randomCategory}!`, onComplete: () => {
                                 for(let i = 0; i < wordsToStealCount; i++) {
@@ -1528,7 +1991,8 @@ function triggerRandomEvent() {
                             }};
                         } else { 
                              // Fallback si no hay palabras para robar
-                             const moneyStolenFallback = Math.floor(playerMoney * 0.15);
+                             const stolenFactorFallback = 0.15 * difficultyFactor;
+                             const moneyStolenFallback = Math.floor(playerMoney * stolenFactorFallback);
                              return { title: 'Robo de Ingresos', effectText: `Iba a robar palabras, pero no tienes. Me conformo con ${moneyStolenFallback.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}`, onComplete: () => {
                                 playerMoney -= moneyStolenFallback;
                                 updateUI();
@@ -1538,8 +2002,8 @@ function triggerRandomEvent() {
             }
         );
     }
-    // 3. Regalo del Guardián (Probabilidad 20%)
-    else if (rand < 0.40) { 
+    // 3. Regalo del Guardián (Probabilidad 20% / Dificultad)
+    else if (rand < baseMiniChallengeChance + baseThiefAttackChance + baseGuardianGiftChance) { 
          console.log("Triggering guardian gift.");
          triggerGuardianGift();
     } else {
@@ -1554,15 +2018,18 @@ function triggerGuardianGift() {
     const giftRand = Math.random();
     let dialogue, effectText;
     let moneyGained = 0;
+    const difficultyFactor = calculateDynamicDifficulty();
 
-    if (giftRand < 0.95) { 
+    if (giftRand < 0.85) { // 85% de probabilidad de Don de Riqueza
          console.log("Guardian gift: Wealth.");
         dialogue = "Veo tu esfuerzo, acepta esta ayuda.";
-        const moneyPercent = 0.05 + Math.random() * 0.10; 
+        // La recompensa se ajusta a la inversa de la dificultad
+        const moneyPercent = (0.05 + Math.random() * 0.10) / difficultyFactor; 
         moneyGained = Math.floor(playerMoney * moneyPercent);
         effectText = `¡Don de Riqueza! (+${moneyGained.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`;
         playerMoney += moneyGained;
-    } else { 
+        playerStats.dineroGanadoTotal += moneyGained;
+    } else { // 15% de probabilidad de Limbo Gramatical
          console.log("Guardian gift: Protection (Limbo).");
         dialogue = "¡Protégete de la oscuridad!";
         effectText = "¡Don de Protección! (Limbo Gramatical +1 min)";
@@ -1716,6 +2183,7 @@ function checkForThiefDeal(callbackOnNoDeal) {
             document.getElementById('rejectDealButton').onclick = () => {
                  console.log("Deal rejected.");
                 dealRejectedForLimboBoost = true; 
+                playerStats.tratosRechazados++; // Contador para logro
                 modal.classList.add('hidden', 'opacity-0');
                 modal.classList.remove('flex');
                 
@@ -1745,17 +2213,26 @@ function mainGameLoop(timestamp) {
         return;
     }
     
-    // Lógica de Ingreso Pasivo (cada 1 segundo)
+    // Lógica de Ingreso Pasivo y Contaminación (cada 1 segundo)
     if (!lastUpdateTime) lastUpdateTime = timestamp;
     const deltaTime = timestamp - lastUpdateTime;
     lastUpdateTime = timestamp;
     timeSinceLastIncomeUpdate += deltaTime;
+    timeElapsedInGame += deltaTime; // Contar el tiempo jugado
+    playerStats.tiempoJuego += deltaTime; // Actualizar estadística global (para logros)
+    
     if (timeSinceLastIncomeUpdate >= 1000) {
         let incomeThisSecond = passiveIncome;
         // Aplicar boosts de Christopher y Limbo al ingreso por segundo
         if (Date.now() < christopherBoostEndTime) incomeThisSecond *= 2;
         if(Date.now() < limboGramaticalEndTime) incomeThisSecond *= 1.21;
+        if (Date.now() < tripleIncomeEndTime) incomeThisSecond *= 3;
+        
         playerMoney += incomeThisSecond;
+        
+        // Aumentar la contaminación pasivamente
+        grammaticalContamination = Math.min(grammaticalContamination + CORRUPTION_BASE_INCREASE_PER_SECOND, CORRUPTION_MAX);
+
         timeSinceLastIncomeUpdate = 0;
         
         updateUI();
@@ -1771,8 +2248,13 @@ function updateTimerBarUI() {
     if (gameState !== 'PLAYING' || !gameStarted || !currentWord.startTime) return; 
     const bar = document.getElementById('wordTimerBar');
     if (!bar) return;
+    
+    // Recalcular la duración de la palabra basada en la dificultad
+    const baseDuration = currentWord.isBonus ? 1000 : 3000;
+    const difficultyFactor = calculateDynamicDifficulty();
+    const duration = currentWord.isBonus ? 1000 : Math.max(1000, baseDuration / difficultyFactor);
+    
     const now = Date.now();
-    const duration = currentWord.isBonus ? 1000 : 3000;
     const elapsedTime = now - currentWord.startTime;
     const timeLeft = Math.max(0, duration - elapsedTime);
     const percentage = (timeLeft / duration) * 100;
@@ -2071,6 +2553,7 @@ function setupEventListeners() {
         let rewardMessage;
         if (consecutiveFailures === 0) {
             playerMoney += 300000;
+            playerStats.dineroGanadoTotal += 300000;
             rewardMessage = "¡Don aceptado! Recibes 300,000 monedas y el LIMBO GRAMATICAL ha comenzado.";
         } else {
             consecutiveFailures = 0;
