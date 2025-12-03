@@ -237,11 +237,461 @@ const ACHIEVEMENTS = {
     }
 };
 
+/**
+ * Palabras problemáticas para desafíos avanzados de homófonas, diacríticas, etc.
+ * Integrado de deepseek_javascript_20251203_212966.js
+ */
+const PROBLEMATIC_WORDS = {
+    HOMOFONAS: [
+        { word: "Valla", alternatives: ["Vaya", "Baya"], correct: "Valla", category: "Homófonas" },
+        { word: "Hecho", alternatives: ["Echo"], correct: "Echo", category: "Homófonas" },
+        { word: "Halla", alternatives: ["Haya", "Allá"], correct: "Halla", category: "Homófonas" }
+    ],
+    ACENTUACION_DIACRITICA: [
+        { word: "si", context: "condicional", correct: "sí", category: "Diacrítica" },
+        { word: "te", context: "pronombre", correct: "té", category: "Diacrítica" },
+        { word: "de", context: "verbo", correct: "dé", category: "Diacrítica" }
+    ],
+    EXTRANJERISMOS: [
+        { word: "Parking", correct: "Parking", category: "Extranjerismos", note: "No lleva tilde" },
+        { word: "Whisky", correct: "Whisky", category: "Extranjerismos", note: "No lleva tilde" },
+        { word: "Software", correct: "Software", category: "Extranjerismos", note: "No lleva tilde" }
+    ]
+};
+
+/**
+ * Sistema de eventos y sonidos contextuales.
+ * Integrado de deepseek_javascript_20251203_0dce6c.js
+ */
+const CONTEXTUAL_SOUNDS = {
+    LOW_HEALTH: {
+        trigger: () => consecutiveFailures >= 2,
+        sound: () => {
+            const heartbeat = new Tone.PulseOscillator(120).toDestination();
+            const lfo = new Tone.LFO(2, 120, 180).start();
+            lfo.connect(heartbeat.frequency);
+            heartbeat.start().stop("+0.5");
+        },
+        frequency: 5000, 
+        lastPlayed: 0
+    },
+    
+    HIGH_INCOME: {
+        trigger: () => passiveIncome > 100000,
+        sound: () => {
+            const chime = new Tone.Synth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.5 }
+            }).toDestination();
+            chime.triggerAttackRelease("C6", "8n");
+        },
+        frequency: 15000,
+        lastPlayed: 0
+    },
+    
+    STREAK: {
+        trigger: () => playerStats.rachaMaxima >= 5, // Usando la racha de boss como ejemplo
+        sound: () => {
+            const notes = ["C5", "E5", "G5", "C6"];
+            notes.forEach((note, i) => {
+                setTimeout(() => {
+                    const synth = new Tone.Synth().toDestination();
+                    synth.triggerAttackRelease(note, "8n");
+                }, i * 100);
+            });
+        },
+        oneTime: true,
+        played: false
+    }
+};
+
+/**
+ * Constantes para la reproducción de efectos de sonido sintetizados.
+ * Integrado de deepseek_javascript_20251203_cd811d.js
+ */
+const SOUND_EFFECTS = {
+    GUARDIAN: {
+        APPEAR: {
+            type: 'pad',
+            notes: ['C4', 'E4', 'G4', 'C5'],
+            duration: 2,
+            envelope: { attack: 0.5, release: 2 }
+        },
+        GIFT: {
+            type: 'bell',
+            notes: ['C5', 'E5', 'G5'],
+            duration: 1.5,
+            envelope: { attack: 0.1, release: 1.5 }
+        },
+        HEAL: {
+            type: 'choir',
+            notes: ['A4', 'C5', 'E5'],
+            duration: 1,
+            envelope: { attack: 0.2, release: 1 }
+        }
+    },
+    
+    THIEF: {
+        APPEAR: {
+            type: 'darkPad',
+            notes: ['C2', 'D#2', 'G2'],
+            duration: 1.5,
+            envelope: { attack: 0.1, release: 1.5 },
+            distortion: 0.7
+        },
+        STEAL: {
+            type: 'glitch',
+            notes: ['C3', 'D#3'],
+            duration: 0.5,
+            envelope: { attack: 0.05, release: 0.3 }
+        },
+        TAUNT: {
+            type: 'noise',
+            volume: -5
+        },
+        CORRUPT: {
+            type: 'distortion',
+            notes: ['E2', 'G2', 'A#2'],
+            duration: 0.8,
+            envelope: { attack: 0.05, release: 0.5 }
+        }
+    },
+    
+    GAME: {
+        WORD_PURCHASE: {
+            type: 'sparkle',
+            notes: ['C5', 'E5'],
+            duration: 0.3
+        },
+        SUPER_VALUE: {
+            type: 'shine',
+            notes: ['C6', 'G6'],
+            duration: 0.5
+        },
+        BOSS_VICTORY: {
+            type: 'fanfare',
+            notes: ['C4', 'E4', 'G4', 'C5', 'E5', 'G5'],
+            duration: 2
+        },
+        GAME_OVER: {
+            type: 'darkChord',
+            notes: ['C2', 'D#2', 'F#2', 'A2'],
+            duration: 3
+        },
+        LEVEL_UP: {
+            type: 'ascending',
+            notes: ['C4', 'E4', 'G4', 'C5', 'E5', 'G5', 'C6'],
+            duration: 1.2
+        }
+    }
+};
+
+// =======================================================================
+// CLASES Y SISTEMAS DE AUDIO
+// =======================================================================
+
+/**
+ * Sistema de Audio Posicional para efectos de movimiento (ej. Ladrón moviéndose).
+ * Integrado de deepseek_javascript_20251203_39a08b.js
+ */
+class PositionalAudio {
+    constructor() {
+        this.panner = new Tone.Panner3D({
+            panningModel: "HRTF",
+            distanceModel: "exponential",
+            positionX: 0,
+            positionY: 0,
+            positionZ: 0,
+            orientationX: 0,
+            orientationY: 0,
+            orientationZ: 0,
+            refDistance: 1,
+            maxDistance: 10000,
+            rolloffFactor: 1,
+            coneInnerAngle: 360,
+            coneOuterAngle: 0,
+            coneOuterGain: 0
+        }).toDestination();
+        
+        this.listener = Tone.Listener;
+        this.listener.positionX.value = 0;
+        this.listener.positionY.value = 0;
+        this.listener.positionZ.value = 1;
+    }
+    
+    playPositionalSound(sound, position) {
+        const { x, y, z } = position;
+        this.panner.positionX.value = x;
+        this.panner.positionY.value = y;
+        this.panner.positionZ.value = z;
+        
+        sound.connect(this.panner);
+        sound.start();
+    }
+    
+    // Ejemplo: sonido del ladrón "moviéndose" por la pantalla
+    playThiefMovement() {
+        if (isMuted) return;
+        const movementSound = new Tone.NoiseSynth({
+            noise: { type: "pink" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.1 }
+        });
+        movementSound.volume.value = -10; 
+        
+        movementSound.connect(this.panner);
+        movementSound.triggerAttackRelease(1);
+
+        // Animar la posición (simulando movimiento de izquierda a derecha)
+        let pos = -10;
+        const interval = setInterval(() => {
+            this.panner.positionX.value = pos;
+            pos += 0.5;
+            if (pos > 10) {
+                clearInterval(interval);
+                movementSound.dispose();
+            }
+        }, 50);
+    }
+}
+
+/**
+ * Clase para manejar la música dinámica y transiciones entre escenas.
+ * Integrado de deepseek_javascript_20251203_6974d9.js
+ * También incluye la creación de sintetizadores de deepseek_javascript_20251203_8c631c.js y deepseek_javascript_20251203_e5ba57.js
+ */
+class DynamicAudioSystem {
+    constructor() {
+        this.audioContext = Tone.context;
+        // Global Volume Nodes
+        this.masterVolume = new Tone.Volume(-3).toDestination();
+        this.musicVolume = new Tone.Volume(-6).connect(this.masterVolume);
+        this.sfxVolume = new Tone.Volume(-3).connect(this.masterVolume);
+        
+        this.currentMusic = null;
+        this.musicScene = 'startup';
+        
+        // Setup Music components (Synths and Parts)
+        this.musicComponents = this.setupMusicComponents();
+    }
+    
+    setupMusicComponents() {
+        // --- Componentes de Música Principal (Exploración) ---
+        const mainReverb = new Tone.Reverb(1.5).connect(this.musicVolume);
+        const chorus = new Tone.Chorus(4, 2.5, 0.7).connect(mainReverb);
+        const mainSynth = new Tone.PolySynth(Tone.FMSynth, {
+            harmonicity: 1, modulationIndex: 7,
+            envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 1.4 },
+            modulation: { type: "triangle" }
+        }).connect(chorus);
+        const mainNotes = [ { time: '0:0', notes: ['C4', 'E4', 'G4'] }, { time: '0:2', notes: ['A4'] }, { time: '1:0', notes: ['G3', 'B3', 'D4'] }, { time: '2:0', notes: ['F3', 'A3', 'C4'] }, { time: '2:2', notes: ['G3'] }, { time: '3:0', notes: ['E3', 'G3', 'B3'] }, { time: '4:0', notes: ['A3', 'C4', 'E4'] }, { time: '4:2', notes: ['B4'] }, { time: '5:0', notes: ['G3', 'B3', 'D4'] }, { time: '6:0', notes: ['C4', 'E4', 'A4'] }, { time: '6:2', notes: ['G4'] }, { time: '7:0', notes: ['F3', 'A3', 'C4'] } ];
+        const mainMusicPart = new Tone.Part((time, value) => { mainSynth.triggerAttackRelease(value.notes, "2n", time); }, mainNotes);
+        mainMusicPart.loop = true; mainMusicPart.loopEnd = '8m';
+        mainSynth.volume.value = -Infinity;
+
+        // --- Componentes de Música del Ladrón (Tensión/Jefe) --- (deepseek_javascript_20251203_e5ba57.js)
+        const thiefReverb = new Tone.Reverb(8).connect(this.musicVolume);
+        const thiefDistortion = new Tone.Distortion(0.8).connect(thiefReverb);
+        const thiefMainSynth = new Tone.MonoSynth({
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 1.5 },
+            filter: { type: "lowpass", frequency: 500, rolloff: -24, Q: 3 }
+        }).connect(thiefDistortion);
+        const thiefRhythm = [ { time: '0:0', note: 'C2', duration: '4n' }, { time: '0:2', note: 'D#2', duration: '8n' }, { time: '1:0', note: 'F2', duration: '4n' }, { time: '1:2', note: 'G#2', duration: '8n' }, { time: '2:0', note: 'A#2', duration: '2n' }, { time: '3:0', note: 'C2', duration: '4n' }, { time: '3:2', note: 'F2', duration: '8n' } ];
+        const thiefMusicPart = new Tone.Part((time, value) => { thiefMainSynth.triggerAttackRelease(value.note, value.duration, time); }, thiefRhythm);
+        thiefMusicPart.loop = true; thiefMusicPart.loopEnd = '4m';
+        thiefMainSynth.volume.value = -Infinity;
+
+        // --- Componentes de Música del Guardián (Limbo) --- (deepseek_javascript_20251203_8c631c.js)
+        const guardianReverb = new Tone.Reverb(10).connect(this.musicVolume);
+        const guardianChorus = new Tone.Chorus(2, 3.5, 0.7).connect(guardianReverb);
+        const guardianSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sine", modulationType: "sine", modulationIndex: 3, harmonicity: 1.5 },
+            envelope: { attack: 0.5, decay: 1.5, sustain: 0.4, release: 4 }
+        }).connect(guardianChorus);
+        const guardianMelody = [ { time: "0:0", note: "C4", duration: "2n" }, { time: "0:2", note: "E4", duration: "2n" }, { time: "1:0", note: "G4", duration: "1n" }, { time: "2:0", note: "A4", duration: "2n" }, { time: "2:2", note: "C5", duration: "2n" }, { time: "3:0", note: "E5", duration: "4n" }, { time: "3:2", note: "G4", duration: "4n" } ];
+        const guardianMusicPart = new Tone.Part((time, value) => { guardianSynth.triggerAttackRelease(value.note, value.duration, time); }, guardianMelody);
+        guardianMusicPart.loop = true; guardianMusicPart.loopEnd = '4m';
+        guardianSynth.volume.value = -Infinity;
+
+        return { mainSynth, mainMusicPart, thiefMainSynth, thiefMusicPart, guardianSynth, guardianMusicPart };
+    }
+
+    startAllParts() {
+        this.musicComponents.mainMusicPart.start(0);
+        this.musicComponents.thiefMusicPart.start(0);
+        this.musicComponents.guardianMusicPart.start(0);
+    }
+    
+    stopAllMusic(duration = 0.5) {
+        // Detiene todas las partes con un fade
+        this.musicComponents.mainSynth.volume.rampTo(-Infinity, duration);
+        this.musicComponents.thiefMainSynth.volume.rampTo(-Infinity, duration);
+        this.musicComponents.guardianSynth.volume.rampTo(-Infinity, duration);
+        this.currentMusic = null;
+    }
+
+    playSceneMusic(scene, duration = 1.5) {
+        if (this.musicScene === scene) return;
+        this.musicScene = scene;
+        
+        this.stopAllMusic(duration); // Fade out all existing music
+
+        switch(scene) {
+            case 'startup':
+            case 'playing':
+                this.currentMusic = this.musicComponents.mainSynth;
+                this.currentMusic.volume.rampTo(-6, duration);
+                // Aquí se podría implementar lógica de capas de tensión si fuera necesario
+                break;
+            case 'thief':
+            case 'boss':
+                this.currentMusic = this.musicComponents.thiefMainSynth;
+                this.currentMusic.volume.rampTo(-6, duration);
+                break;
+            case 'limbo':
+            case 'guardian':
+                this.currentMusic = this.musicComponents.guardianSynth;
+                this.currentMusic.volume.rampTo(-8, duration);
+                break;
+        }
+        
+        // Inicia el rotador de reglas solo en estado 'playing'
+        if (scene === 'playing') {
+            startRulesRotator();
+        } else {
+            stopRulesRotator();
+        }
+    }
+    
+    addStinger(soundName) {
+        // Lógica para efectos cortos. Se usa playSoundEffect.
+        if (!isMuted) {
+            const effectsMap = {
+                'correct': SOUND_EFFECTS.GAME.WORD_PURCHASE,
+                'error': SOUND_EFFECTS.THIEF.CORRUPT,
+                'warning': SOUND_EFFECTS.THIEF.APPEAR, // Usar un sonido de advertencia
+                'surprise': SOUND_EFFECTS.GUARDIAN.GIFT
+            };
+            if (effectsMap[soundName]) {
+                playSoundEffect(effectsMap[soundName]);
+            }
+        }
+    }
+
+    transitionTo(scene, duration = 2) {
+        this.playSceneMusic(scene, duration);
+    }
+}
+
+/**
+ * Función para reproducir un efecto de sonido sintetizado.
+ * Extendido de deepseek_javascript_20251203_cd811d.js
+ */
+function playSoundEffect(soundConfig) {
+    if (!audioInitialized || isMuted || !window.audioSystem) return;
+    
+    const output = window.audioSystem.sfxVolume;
+
+    switch(soundConfig.type) {
+        case 'pad':
+        case 'darkPad':
+            const synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: soundConfig.type === 'darkPad' ? "sawtooth" : "sine" },
+                envelope: { attack: 0.2, decay: 0.3, sustain: 0.4, release: soundConfig.envelope.release }
+            }).connect(output);
+            synth.triggerAttackRelease(soundConfig.notes, soundConfig.duration);
+            break;
+            
+        case 'bell':
+            const bell = new Tone.MetalSynth({
+                frequency: 800,
+                envelope: { attack: 0.001, decay: 0.1, release: soundConfig.envelope.release },
+                harmonicity: 8.5,
+                modulationIndex: 40,
+                resonance: 300
+            }).connect(output);
+            bell.triggerAttackRelease(soundConfig.notes[0], soundConfig.duration);
+            break;
+            
+        case 'sparkle':
+        case 'shine':
+            const sparkle = new Tone.NoiseSynth({
+                noise: { type: "white" },
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+            }).connect(output);
+            sparkle.triggerAttackRelease(soundConfig.duration);
+            
+            // Añadir tono brillante
+            const highTone = new Tone.Synth({
+                oscillator: { type: soundConfig.type === 'shine' ? "square" : "triangle" },
+                envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
+            }).connect(output);
+            highTone.triggerAttackRelease(soundConfig.notes[0], soundConfig.duration * 0.5);
+            break;
+
+        case 'noise':
+            const noise = new Tone.NoiseSynth({
+                noise: { type: "pink" },
+                envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.5 }
+            }).connect(output);
+            noise.volume.value = soundConfig.volume || -10;
+            noise.triggerAttackRelease(1);
+            break;
+        case 'glitch':
+            const glitch = new Tone.MembraneSynth({
+                pitchDecay: 0.008,
+                octaves: 2,
+                envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.01 }
+            }).connect(output);
+            glitch.triggerAttackRelease(soundConfig.notes[0], soundConfig.duration);
+            break;
+    }
+}
+
+/**
+ * Función para chequear y reproducir sonidos contextuales.
+ * Integrado de deepseek_javascript_20251203_0dce6c.js
+ */
+function checkContextualSounds() {
+    Object.values(CONTEXTUAL_SOUNDS).forEach(context => {
+        // Actualizar la racha actual para el trigger de STREAK (simulación)
+        if (context === CONTEXTUAL_SOUNDS.STREAK) {
+            context.trigger = () => playerStats.jefesDerrotadosSeguidos >= 1; // Simplificado para probar
+        }
+
+        if (context.trigger() && gameState === 'PLAYING' && !isMuted) {
+            if (context.oneTime && !context.played) {
+                context.sound();
+                context.played = true;
+            } else if (!context.oneTime) {
+                const now = Date.now();
+                if (!context.lastPlayed || now - context.lastPlayed > context.frequency) {
+                    context.sound();
+                    context.lastPlayed = now;
+                    // Advertencia de vida baja con stinger
+                    if (context === CONTEXTUAL_SOUNDS.LOW_HEALTH) {
+                        window.audioSystem.addStinger('warning');
+                    }
+                }
+            }
+        } else if (!context.trigger() && context.played) {
+            // Reiniciar si la condición ya no se cumple
+            context.played = false;
+        }
+    });
+}
+
+
 // =======================================================================
 // CONFIGURACIÓN Y ESTADO DEL JUEGO
 // =======================================================================
 let gameState = 'STARTUP'; 
 let playerName = "";
+
+// --- Instancias de Audio ---
+let audioInitialized = false;
+let positionalAudio = null;
+let audioSystem = null;
 
 let playerMoney = 500;
 let playerWords = {};
@@ -287,6 +737,7 @@ let contaminationIncreaseInterval = null; // Intervalo para el aumento de corrup
 let animationFrameId = null;
 let lastUpdateTime = 0;
 let timeSinceLastIncomeUpdate = 0;
+let timeSinceLastContextCheck = 0; // Nuevo para sonidos contextuales
 let wordDisplayTimeout;
 let challengeTimerInterval;
 let guardianBlessingTimeout = null; // Temporizador para el regalo de vida del Guardián
@@ -317,14 +768,8 @@ let activeChallengeOnLoad = false; // Indica si hay un reto activo al cargar
 let visibilityChangeHandler = null;
 let confirmCallback = null; // Callback para el modal de confirmación
 let currentChallengeData = {};
-
-// =======================================================================
-// VARIABLES DE AUDIO
-// =======================================================================
-let audioInitialized = false;
-let mainMusicLoop, thiefMusicLoop;
-let mainSynth, thiefSynth;
 let isMuted = false;
+
 
 // =======================================================================
 // VARIABLES DE BOSS (JEFE)
@@ -487,41 +932,6 @@ const ICON_LIBRARY = {
     'speakerOff': `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" /><path stroke-linecap="round" stroke-linejoin="round" d="M17 14l-2-2m0 0l-2-2m2 2l2-2m-2 2l-2 2" /></svg>`
 };
 
-// Gran base de datos de palabras, dividida por categorías de acentuación
-const HUGE_WORD_DATABASE = {
-     "Monosílabos": {
-        value: 10,
-        words: ["Sol", "Mar", "Luz", "Voz", "Pan", "Sal", "Miel", "Tren", "Flor", "Rey", "Son", "Paz", "Bien", "Mal", "Gas", "No", "Sí", "Yo", "Él", "Tú", "Ve", "Da", "Sé", "Vi", "Di", "Pie", "Fe", "Ley", "Don", "Fin", "Mes", "Mil", "Res", "Ron", "Set", "Sur", "Tal", "Tez", "Zas", "Dar", "Ver", "Mas", "Te", "Mi", "Si", "El", "Un", "La", "Los", "Las", "Dos", "Tres", "Cien", "Tan", "Muy", "Ah", "Oh", "Ya", "En", "Es", "Ir", "O", "Y", "A", "De", "Ni", "So", "Va", "Le", "Lo", "Me", "Se", "Su", "Tu", "Gol", "Bar", "Bit", "Box", "Bus", "Chip", "Club", "Fan", "Fax", "Gel", "Gin", "Golf", "Jet", "Kit", "Led", "Link", "Look", "Pub", "Punk", "Rap", "Rock", "Rol", "Show", "Ski", "Snob", "Spot", "Stop", "Surf", "Test", "Top", "Tour", "Web", "Zen", "Zinc", "Clip", "Crack", "Cross", "Film", "Flash", "Folk", "Full"], 
-        superValueWords: ["Flor", "Voz", "Rey", "Paz", "Luz", "Miel"],
-        limit: 100 // Límite de palabras para completar la categoría
-    },
-    "Agudas": {
-        value: 100,
-         words: ["Acción", "Adicción", "Además", "Andén", "Balón", "Bebé", "Café", "Camión", "Canción", "Colibrí", "Corazón", "Después", "Emoción", "Interés", "Jabalí", "Jamás", "Jardín", "Jazmín", "Menú", "País", "París", "Pasión", "Perfección", "Portugués", "Revolución", "Sofá", "Solución", "También", "Visión", "Volcán", "Comió", "Estudió", "Habló", "Vivió", "Ganará", "Común", "Betún", "Calzón", "Dragón", "Francés", "Inglés", "Japonés", "Maní", "Ratón", "Tiburón", "Vudú", "Bambú", "Jabón", "Melón", "Patín", "Avión", "Botón", "Compás", "Decisión", "Estación", "Explosión", "Ilusión", "León", "Misión", "Opinión", "Pantalón", "Salmón", "Televisión", "Unión", "Violín", "Atún", "Azafrán", "Carbón", "Colchón", "Limón", "Salón", "Sartén", "Tapón", "Tazón", "Almacén", "Alquitrán", "Arnés", "Autobús", "Bailarín", "Bergantín", "Bombón", "Calderón", "Capitán", "Chapuzón", "Ciprés", "Civilización", "Composición", "Confirmación", "Congestión", "Construcción", "Conversación", "Corrupción", "Cotización", "División", "Edredón", "Evaluación", "Expedición", "Explicación", "Faraón", "Huracán", "Información", "Instalación", "Afganistán", 
-         "Cristal", "Cuartel", "Feliz", "Reloj", "Pared", "Cantar", "Comer", "Vivir"],
-        superValueWords: ["Colibrí", "Jazmín", "Pasión", "Revolución", "Corazón", "Tiburón"],
-        limit: 100 
-    },
-    "Llanas": {
-        value: 250,
-         words: ["Árbol", "Ángel", "Azúcar", "Cáncer", "Cárcel", "Carácter", "Césped", "Clímax", "Cráter", "Día", "Difícil", "Dólar", "Éter", "Fácil", "Fósil", "Fútbol", "Huésped", "Lápiz", "Líder", "Mártir", "Móvil", "Nácar", "Poesía", "Póker", "Río", "Tórax", "Trébol", "Túnel", "Geografía", "Biología", "Filosofía", "Tecnología", "Psicología", "Economía", "Anatomía", "Sandía", "Policía", "Cómics", "Fénix", "Hábil", "Inmóvil", "Referí", "Tándem", "Tótem", "Versátil", "Zombis", "Álbum", "Cáliz", "Débil", "Frágil", "Níquel", "Récord", "Estéril", "Portátil", "Táctil", "Textil", "Útil", "Automóvil", "Cónsul", "Dúctil", "Huérfano", "Mármol", "Néctar", "Péndulo", "Revólver", "Volátil", "Bíceps", "Fórceps", "Tríceps", "Acné", "Apóstol", "Cráneo", "Gómez", "López", "Martínez", "Pérez", "Sánchez", "Alcázar", "Bolívar", "Cádiz", "Héctor", "Júnior", "Suárez", "Tóner", "Wáter", "Ámbar", "Béisbol", "Cadáver", "Contraseña", "Cristóbal", "Estándar", "Flúor", "Gánster", "Hámster", "Ítem", "Kárdex", "Láser", "Máster", "Médium", "Póster", "Referéndum", "Sándwich", "Superávit"], 
-        superValueWords: ["Carácter", "Cráter", "Poesía", "Geografía", "Fénix", "Filosofía"],
-        limit: 100 
-    },
-    "Esdrújulas": {
-        value: 500,
-        words: ["Análisis", "Antártida", "Atmósfera", "Bolígrafo", "Brújula", "Cálculo", "Catástrofe", "Círculo", "Clínica", "Cómpralo", "Déficit", "Esdrújula", "Estómago", "Éxito", "Fábrica", "Fósforo", "Gramática", "Hígado", "Héroe", "Hipócrita", "Índice", "Lágrima", "Lógico", "Mágico", "Máquina", "Matemáticas", "Médico", "Miércoles", "Murciélago", "Músculo", "Música", "Número", "Oxígeno", "Página", "Pájaro", "Plátano", "Público", "Química", "Rápido", "Sábado", "Semáforo", "Sílaba", "Teléfono", "Término", "Tráfico", "Último", "Vértebra", "Víctima", "Aéreo", "Célula", "Diálogo", "Época", "Gótico", "Jurásico", "Kilómetro", "Óptimo", "Párrafo", "Pirámide", "Sátira", "Técnica", "Vándalo", "Académico", "Ábaco", "Águila", "Álgebra", "Ámbito", "Análogo", "Ánimo", "Antídoto", "Apóstrofe", "Armónica", "Arácnido", "Artículo", "Atlético", "Aurícula", "Auténtico", "Bálsamo", "Bárbaro", "Básico", "Benéfico", "Biblioteca", "Bólido", "Botánico", "Bóveda", "Bulímico", "Burócrata", "Cámara", "Capítulo", "Cápsula", "Cátedra", "Católico", "Centímetro", "Cerámica", "Cíclope", "Científico", "Clásico", "Código", "Colérico", "Cómico", "Cómplice", "Cónyuge", "Crédito", "Crítico", "Crónica", "Cúbico", "Cúpula", "Débito", "Década", "Décimo", "Demócrata", "Depósito", "Diámetro", "Didáctico", "Dinámico", "Cuádriceps", "Dátiles", "Énfasis", "Cónclave", "Dóberman", "Mánager", "Taxímetro"], 
-        superValueWords: ["Atmósfera", "Murciélago", "Científico", "Matemáticas", "Pirámide", "Jurásico"],
-        limit: 100 
-    },
-    "Sobreesdrújulas": {
-        value: 1000000,
-        words: ["Agradéceselo", "Apréndetelo", "Averíguamelo", "Búscaselo", "Comprándomelo", "Dígamelo", "Díceselo", "Enciéndemelo", "Entrégaselo", "Explícaselo", "Guárdaselo", "Hágaselo", "Júraselo", "Llévaselo", "Pídemelo", "Pásaselo", "Repíteselo", "Tráigaselo", "Véndeselo", "Dedicándoselo", "Estudiándotelo", "Explicándoselo", "Repitiéndoselo", "Comiéndoselo", "Escribiéndotelo", "Mirándoselo", "Preparándomelo", "Comprándoselo", "Llamándoselo", "Encontrándoselo", "Recibiéndoselo", "Entregándoselo", "Aceptándoselo", "Aconsejándoselo", "Acompañándotelo", "Aprendiéndotelo", "Bendiciéndotelo", "Buscándoselo", "Celebrándoselo", "Comentándoselo"],
-        superValueWords: [],
-        limit: 1 // Solo se necesita 1 para ganar
-    }
-};
-
 let WORD_DATABASE = {}; // La base de datos de palabras del juego (se copia de la grande al inicio) 
 
 // Mapeo de estilos para la UI
@@ -557,17 +967,7 @@ function calculateDynamicDifficulty() {
  */
 function updateGrammaticalContamination() {
     if (gameState !== 'PLAYING') return;
-
-    // 1. Aumento pasivo con el tiempo (base)
-    // Se aumenta por segundo en el mainGameLoop para mejor control
-    
-    // Asegurar que no exceda el límite
     grammaticalContamination = Math.min(grammaticalContamination, CORRUPTION_MAX);
-
-    // *Efectos de la contaminación (a implementar en el futuro):*
-    // - Palabras normales pueden aparecer corruptas ocasionalmente (ver generateNewWord)
-    // - Efectos visuales de distorsión (cambios CSS, fuera de esta fase)
-    // - Reducción del ingreso pasivo (implementado en recalculatePassiveIncome)
 }
 
 
@@ -755,22 +1155,21 @@ function setGameState(newState) {
         stopGameLoops();
     }
     
+    // Transición de música basada en el nuevo estado
     switch (newState) {
         case 'PLAYING':
             if (oldState !== 'CINEMATIC') {
                 hideAllModals(); 
             }
             startGameLoops();
-            playMainMusic(); 
+            window.audioSystem.playSceneMusic('playing'); 
             if (oldState !== 'CINEMATIC') {
-                // Si no venimos de un cinemático, generamos una palabra inicial o retomamos.
                 if (!currentWord || !currentWord.word) {
                      console.log("Generating initial word because currentWord is empty.");
                      generateNewWord(true); 
                 } else {
                     console.log("Resuming with current word:", currentWord.word);
                      updateTimerBarUI();
-                     // Recalcular el tiempo restante
                      const baseDuration = currentWord.isBonus ? 1000 : 3000;
                      const difficultyFactor = calculateDynamicDifficulty();
                      const duration = Math.max(1000, baseDuration / difficultyFactor); 
@@ -779,7 +1178,6 @@ function setGameState(newState) {
                      startWordDisplayTimer(remainingTime);
                 }
             } else {
-                // Si venimos de un cinemático (modal abierto), retomamos el temporizador si estaba activo.
                 if (currentWord && currentWord.startTime) {
                     const baseDuration = currentWord.isBonus ? 1000 : 3000;
                     const difficultyFactor = calculateDynamicDifficulty();
@@ -797,16 +1195,22 @@ function setGameState(newState) {
             break;
         case 'STARTUP':
             hideAllModals();
-            playMainMusic(); 
+            window.audioSystem.playSceneMusic('startup'); 
             break;
         case 'CINEMATIC':
+            // La música de CINEMATIC se maneja específicamente en showModal/typeEffect
+            break; 
         case 'CHALLENGE_MINI':
         case 'CHALLENGE_BOSS':
-            // En estos estados, los bucles de juego están detenidos.
+            window.audioSystem.playSceneMusic('boss');
             break; 
         case 'GAME_OVER':
+            window.audioSystem.stopAllMusic(0.5);
+            playSoundEffect(SOUND_EFFECTS.GAME.GAME_OVER);
+            break;
         case 'GAME_WON':
-            stopAllMusic();
+            window.audioSystem.stopAllMusic(0.5);
+            playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY);
             break;
     }
 }
@@ -829,9 +1233,8 @@ function showModal(message, duration = 2500, isSuccess = true) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     
-    // Pausar el juego si estaba corriendo
-     const currentState = gameState;
-     if (currentState === 'PLAYING') {
+    const originalState = gameState;
+    if (originalState === 'PLAYING') {
         setGameState('CINEMATIC');
     }
 
@@ -841,12 +1244,8 @@ function showModal(message, duration = 2500, isSuccess = true) {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             
-            // Volver al estado de juego si se pausó para el modal
-            if (gameState === 'CINEMATIC' && currentState !== 'GAME_OVER' && currentState !== 'GAME_WON' && currentView === 'game') {
-                 console.log("Auto-closing modal, returning to PLAYING state.");
+            if (gameState === 'CINEMATIC' && originalState === 'PLAYING') {
                  setGameState('PLAYING');
-            } else {
-                 console.log(`Auto-closing modal, NOT returning to PLAYING. Current state: ${gameState}, Initial state: ${currentState}, Current View: ${currentView}`);
             }
         }, duration);
     } else {
@@ -989,6 +1388,7 @@ function startWordDisplayTimer(duration) {
     wordDisplayTimeout = setTimeout(() => {
         if (gameState === 'PLAYING') {
              console.log("Word timer expired, generating new word.");
+             window.audioSystem.addStinger('error'); // Sonido de fallo/expiración
              generateNewWord(true);
         } else {
              console.log("Word timer expired, but game state is not PLAYING.");
@@ -1001,6 +1401,9 @@ function startWordDisplayTimer(duration) {
  */
 function triggerLimboGramatical() {
     setGameState('CINEMATIC');
+    window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
+    playSoundEffect(SOUND_EFFECTS.GUARDIAN.APPEAR);
+
     playerStats.limboActivaciones++; // Contador de logros
 
     const modal = document.getElementById('guardianModal');
@@ -1310,6 +1713,9 @@ function buyWord() {
         grammaticalContamination = Math.min(grammaticalContamination + 10, CORRUPTION_MAX);
         playerStats.palabrasCorruptasEvitadas++; // Contar las compradas como evitadas/identificadas (esto puede ser confuso, se ajustará en el futuro)
         playerStats.rachaBossSinFallos = 0; // Rompe la racha si se compra corrupta
+        
+        window.audioSystem.playSceneMusic('thief');
+        playSoundEffect(SOUND_EFFECTS.THIEF.CORRUPT); // Efecto de corrupción
         showWhisperModal(BOSS_TAUNT);
         updateUI();
         generateNewWord(true);
@@ -1325,6 +1731,7 @@ function buyWord() {
         const remainingTime = (christopherBoostEndTime > now) ? (christopherBoostEndTime - now) : 0;
         christopherBoostEndTime = now + remainingTime + baseDuration; 
         wordBought = true;
+        playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE); // Sonido de bonus
     } else {
          console.log("Attempting to buy regular word:", currentWord.word, "Category:", currentWord.category);
          
@@ -1377,11 +1784,6 @@ function buyWord() {
             playerStats.palabrasCompradasTotal++;
             playerStats.wordsBought++; // Palabras compradas en la partida
             
-            // Actualizar palabras únicas (solo si se compra por primera vez en esta partida)
-            // Nota: La lógica de playerStats.palabrasUnicasCompradas requiere persistencia, que no está implementada.
-            // Por ahora, usamos wordsBought como proxy para esta partida.
-
-            // Activar boost de Super Valor por categoría
             if (currentWord.isSuperValue) {
                  console.log("Activating Super Value bonus.");
                 const now = Date.now();
@@ -1389,6 +1791,9 @@ function buyWord() {
                 const baseDuration = 10000; // 10 segundos
                 const remainingTime = (superValueBoosts[category] > now) ? (superValueBoosts[category] - now) : 0;
                 superValueBoosts[category] = now + remainingTime + baseDuration; 
+                playSoundEffect(SOUND_EFFECTS.GAME.SUPER_VALUE);
+            } else {
+                 playSoundEffect(SOUND_EFFECTS.GAME.WORD_PURCHASE); // Sonido de compra normal
             }
         } else {
              console.log("Word is already owned or category is full.");
@@ -1397,8 +1802,6 @@ function buyWord() {
 
     if (wordBought) {
         if (!hasBoughtFirstWord) hasBoughtFirstWord = true;
-        
-        // La lógica de playerStats.wordsBought ya está en la sección anterior
         
         document.getElementById('buyButton').disabled = true;
          updateUI();
@@ -1414,12 +1817,10 @@ function buyWord() {
                 checkLimboActivation(); 
                 
                 const elapsedTime = Date.now() - currentWord.startTime;
-                // Recalcular la duración de la palabra basada en la dificultad
                 const baseDuration = currentWord.isBonus ? 1000 : 3000;
                 const difficultyFactor = calculateDynamicDifficulty();
                 const wordDuration = Math.max(1000, baseDuration / difficultyFactor);
 
-                // Tiempo restante para la siguiente palabra (un poco más rápido después de la compra)
                 const newRemainingTime = Math.max(100, (wordDuration - elapsedTime) - 1000);
                 startWordDisplayTimer(newRemainingTime);
             }
@@ -1437,7 +1838,8 @@ function startThiefMiniChallenge(forcedType = null) {
     if (gameState !== 'PLAYING' || allCategoriesCompleted) return;
     
     setGameState('CHALLENGE_MINI');
-    playThiefMusic(); 
+    window.audioSystem.playSceneMusic('boss'); 
+    playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR); // Sonido de aparición
 
     const challengeTypes = ['accent', 'trueFalse', 'tonicSyllable'];
     const type = forcedType || challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
@@ -1454,7 +1856,6 @@ function startThiefMiniChallenge(forcedType = null) {
     document.getElementById('thiefMiniChallengeIcon').innerHTML = ICON_LIBRARY.bossIcon;
     inputEl.value = '';
 
-    // El tiempo restante se reduce por la dificultad (el factor es inversamente proporcional a la duración)
     const difficultyFactor = calculateDynamicDifficulty();
     let timeLeft;
 
@@ -1510,7 +1911,7 @@ function startThiefMiniChallenge(forcedType = null) {
 function endThiefMiniChallenge(playerAnswer) {
     clearInterval(challengeTimerInterval);
     
-    playMainMusic();
+    window.audioSystem.playSceneMusic('playing'); // Vuelve a la música principal
     
     const modal = document.getElementById('thiefMiniChallengeModal');
     modal.classList.add('hidden');
@@ -1522,7 +1923,6 @@ function endThiefMiniChallenge(playerAnswer) {
     switch (currentChallengeData.type) {
         case 'accent':
         case 'tonicSyllable': 
-            // Comparar respuesta de texto
             if (playerAnswer && playerAnswer.trim().toLowerCase() === currentChallengeData.answer.toLowerCase()) {
                 isCorrect = true;
             }
@@ -1535,7 +1935,6 @@ function endThiefMiniChallenge(playerAnswer) {
             }
             break;
         case 'trueFalse':
-            // Comparar respuesta booleana
             if (playerAnswer === currentChallengeData.answer) {
                 isCorrect = true;
             }
@@ -1547,16 +1946,17 @@ function endThiefMiniChallenge(playerAnswer) {
 
     if (isCorrect) {
         playerStats.challengesWon++; 
-        playerStats.desafiosCompletados++; // Para logros
+        playerStats.desafiosCompletados++; 
         const reward = CHALLENGE_REWARDS.base; 
         playerMoney += reward;
         playerStats.dineroGanadoTotal += reward;
-        // Reducir contaminación al ganar desafío
         grammaticalContamination = Math.max(0, grammaticalContamination - 5); 
+        
+        playSoundEffect(SOUND_EFFECTS.GAME.LEVEL_UP); // Sonido de acierto/recompensa
         showModal(`¡Correcto! Ganas ${reward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}.`);
     } else {
-        // Aumentar contaminación por fallo
         grammaticalContamination = Math.min(grammaticalContamination + 15, CORRUPTION_MAX); 
+        playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
         handleChallengeFailure(failureReason);
     }
      if (gameState !== 'GAME_OVER') {
@@ -1570,7 +1970,7 @@ function endThiefMiniChallenge(playerAnswer) {
  */
 function handleChallengeFailure(reason) {
     consecutiveFailures++;
-    playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha de jefes sin fallos
+    playerStats.jefesDerrotadosSeguidos = 0; 
     
     // Lógica de Bendición del Guardián (revivir)
     if (consecutiveFailures === 1 && guardianBlessingAvailable) {
@@ -1580,6 +1980,7 @@ function handleChallengeFailure(reason) {
             if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) { 
                 consecutiveFailures--;
                 showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
+                playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                 updateUI(); 
             }
             guardianBlessingTimeout = null; 
@@ -1587,6 +1988,8 @@ function handleChallengeFailure(reason) {
     }
 
     checkForThiefDeal(() => {
+        window.audioSystem.playSceneMusic('thief'); // Música de tensión
+        playSoundEffect(SOUND_EFFECTS.THIEF.TAUNT);
         showWhisperModal(BOSS_TAUNT, () => {
             showFailureMessage(reason);
         });
@@ -1605,7 +2008,6 @@ function showFailureMessage(reason) {
          }
         document.getElementById('gameOverMessage').textContent = `Fallaste 3 veces. Razón final: ${reason}`;
         changeView('gameOver');
-        // Aquí se podría implementar una penalización permanente, ej: PERMANENT_PENALTIES[0].effect();
     } else {
         resetProgressButKeepLives();
         showModal(`¡Fallo! ${reason}. Has perdido tus palabras. Te quedan ${3 - consecutiveFailures} intentos.`, 4000, false); 
@@ -1674,7 +2076,8 @@ function startBossChallenge(level) {
     activeWhisper = "";
     
     setGameState('CHALLENGE_BOSS');
-    playThiefMusic();
+    window.audioSystem.playSceneMusic('boss');
+    playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
     
     currentBossLevel = level;
     const sentencesForLevel = BOSS_SENTENCES[level] || BOSS_SENTENCES[Object.keys(BOSS_SENTENCES).pop()]; 
@@ -1702,11 +2105,9 @@ function startBossChallenge(level) {
         const difficultyFactor = calculateDynamicDifficulty();
         const baseTime = 60;
         const timeDebuffPerWord = 0.03; 
-        // Reducción de tiempo por palabras corruptas compradas
         const timeDebuff = baseTime * timeDebuffPerWord * corruptedWordsBought; 
         let totalTime = Math.max(15, Math.floor(baseTime - timeDebuff));
         
-        // Reducción por dificultad
         totalTime = Math.max(15, Math.floor(totalTime / difficultyFactor)); 
         
         let timeLeft = totalTime;
@@ -1722,7 +2123,6 @@ function startBossChallenge(level) {
     // Listener para la tecla Enter
     inputEl.onkeyup = (event) => {
         if (event.key === 'Enter') {
-            // Normaliza la respuesta del jugador: elimina espacios extra
             const normalizedPlayerAnswer = inputEl.value.trim().replace(/\s{2,}/g, ' ');
             const normalizedCorrectAnswer = currentBossSentence.right.trim().replace(/\s{2,}/g, ' ');
             
@@ -1745,7 +2145,6 @@ function typeEffect(element, text, onCompleteCallback, autoCloseDelay = null) {
     const dealButtons = modalContent?.querySelector('#thiefDealButtons');
     const giftButtons = modalContent?.querySelector('#guardianButtons');
     
-    // Ocultar botones mientras se escribe el diálogo
     if (dealButtons) dealButtons.classList.add('hidden');
     if (giftButtons) giftButtons.classList.add('hidden');
 
@@ -1755,7 +2154,6 @@ function typeEffect(element, text, onCompleteCallback, autoCloseDelay = null) {
             i++;
             setTimeout(type, 50); // Velocidad de escritura
         } else {
-            // Mostrar botones o ejecutar callback al finalizar
             if ((autoCloseDelay === null || autoCloseDelay === false) && !onCompleteCallback) {
                 if (dealButtons) {
                     dealButtons.classList.remove('hidden');
@@ -1768,7 +2166,6 @@ function typeEffect(element, text, onCompleteCallback, autoCloseDelay = null) {
             }
             if (onCompleteCallback) setTimeout(onCompleteCallback, 500); 
 
-            // Cierre automático del modal
             if(typeof autoCloseDelay === 'number') {
                 setTimeout(() => {
                     const modal = element.closest('.boss-modal-bg, .christopher-modal-bg');
@@ -1781,8 +2178,6 @@ function typeEffect(element, text, onCompleteCallback, autoCloseDelay = null) {
                             if (gameState === 'CINEMATIC' && currentView === 'game') {
                                  console.log("Auto-closing typeEffect modal, returning to PLAYING.");
                                  setGameState('PLAYING');
-                            } else {
-                                 console.log(`Auto-closing typeEffect modal, NOT returning to PLAYING. State: ${gameState}, View: ${currentView}`);
                             }
                         }, 300);
                     }
@@ -1810,16 +2205,13 @@ async function endBossChallenge(isCorrect) {
          console.log(`Boss level ${currentBossLevel} defeated.`);
         bossesDefeated.push(currentBossLevel);
         playerStats.bossesDefeatedCount = bossesDefeated.length;
-        playerStats.jefesDerrotadosSeguidos++; // Aumenta la racha
+        playerStats.jefesDerrotadosSeguidos++; 
         
-        // Actualizar racha de logros
         if (playerStats.jefesDerrotadosSeguidos > playerStats.rachaBossSinFallos) {
             playerStats.rachaBossSinFallos = playerStats.jefesDerrotadosSeguidos;
         }
 
-        // Recompensa en porcentaje del dinero actual, influenciada por la dificultad
         const difficultyFactor = calculateDynamicDifficulty();
-        // La dificultad reduce la recompensa
         const rewardFactor = 1 / Math.sqrt(difficultyFactor); 
         const baseRewardPercentage = { 1: 0.10, 2: 0.15, 3: 0.20, 4: 0.25, 5: 0.30, 6: 0.35, 7: 0.40, 8: 0.50 }[currentBossLevel] || 0.05; 
         const rewardPercentage = baseRewardPercentage * rewardFactor;
@@ -1828,25 +2220,24 @@ async function endBossChallenge(isCorrect) {
         playerMoney += moneyReward;
         playerStats.dineroGanadoTotal += moneyReward;
         
-        // Reducir contaminación al derrotar jefe
         grammaticalContamination = Math.max(0, grammaticalContamination - 25);
         
         const finalDialogue = BOSS_VICTORY_DIALOGUES[Math.floor(Math.random() * BOSS_VICTORY_DIALOGUES.length)];
         const resultMessage = `¡VICTORIA! Ganas un ${Math.floor(rewardPercentage * 100)}% de tu dinero (+${moneyReward.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}).`;
         
+        playSoundEffect(SOUND_EFFECTS.GAME.BOSS_VICTORY); // Sonido de victoria
+        
         typeEffect(dialogueEl, finalDialogue, () => hideBossModal(() => {
-            playMainMusic(); 
+            window.audioSystem.playSceneMusic('playing'); 
             showModal(resultMessage); 
         }));
     } else {
          console.log(`Boss level ${currentBossLevel} failed.`);
         consecutiveFailures++;
-        playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha
+        playerStats.jefesDerrotadosSeguidos = 0; 
         
-        // Aumentar contaminación por fallo
         grammaticalContamination = Math.min(grammaticalContamination + 30, CORRUPTION_MAX); 
         
-        // Lógica de Bendición del Guardián (revivir)
         if (consecutiveFailures === 1 && guardianBlessingAvailable) {
              guardianBlessingAvailable = false;
              if (guardianBlessingTimeout) clearTimeout(guardianBlessingTimeout);
@@ -1854,6 +2245,7 @@ async function endBossChallenge(isCorrect) {
                 if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) {
                     consecutiveFailures--;
                     showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
+                    playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                     updateUI();
                 }
                 guardianBlessingTimeout = null;
@@ -1861,9 +2253,8 @@ async function endBossChallenge(isCorrect) {
         }
 
         checkForThiefDeal(() => {
-            // Penalización en porcentaje del dinero actual, influenciada por la dificultad
             const difficultyFactor = calculateDynamicDifficulty();
-            const penaltyFactor = 1 * difficultyFactor; // La dificultad aumenta la penalización
+            const penaltyFactor = 1 * difficultyFactor; 
             
             let baseMoneyLost = playerMoney * ({ 1: 0.10, 2: 0.20, 3: 0.30, 4: 0.40, 5: 0.50, 6: 0.50, 7: 0.50, 8: 0.50 }[currentBossLevel] || 0.1); 
             let moneyLost = baseMoneyLost * penaltyFactor;
@@ -1873,8 +2264,10 @@ async function endBossChallenge(isCorrect) {
             const finalDialogue = BOSS_DEFEAT_DIALOGUES[Math.floor(Math.random() * BOSS_DEFEAT_DIALOGUES.length)];
             const resultMessage = `¡DERROTA! El Ladrón te roba ${Math.floor(moneyLost).toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}. Pierdes 1 vida.`;
             
+            playSoundEffect(SOUND_EFFECTS.THIEF.STEAL); // Sonido de robo
+            
             typeEffect(dialogueEl, finalDialogue, () => hideBossModal(() => {
-                playMainMusic(); 
+                window.audioSystem.playSceneMusic('playing'); 
                 if (consecutiveFailures >= 3) {
                      if (guardianBlessingTimeout) { 
                         clearTimeout(guardianBlessingTimeout);
@@ -1903,11 +2296,9 @@ function triggerRandomEvent() {
     const difficultyFactor = calculateDynamicDifficulty();
     const contaminationFactor = (1 + (grammaticalContamination / CORRUPTION_MAX));
     
-    // Probabilidades base ajustadas por dificultad/contaminación
     const baseMiniChallengeChance = 0.10;
-    const baseThiefAttackChance = 0.10 * contaminationFactor; // La contaminación aumenta la frecuencia de ataques
-    const baseGuardianGiftChance = 0.20 / difficultyFactor; // La dificultad reduce la frecuencia de regalos
-     console.log(`Random event check. Rand: ${rand.toFixed(2)}. Attack Chance: ${(baseThiefAttackChance * 100).toFixed(2)}%`);
+    const baseThiefAttackChance = 0.10 * contaminationFactor; 
+    const baseGuardianGiftChance = 0.20 / difficultyFactor; 
 
     // 1. Mini-Retos (Probabilidad 10% base)
     if (rand < baseMiniChallengeChance) { 
@@ -1920,9 +2311,12 @@ function triggerRandomEvent() {
     // 2. Ataque Aleatorio del Ladrón (Probabilidad 10% * Contaminación)
     else if (rand < baseMiniChallengeChance + baseThiefAttackChance) {
         console.log("Triggering random thief attack.");
+        
+        window.audioSystem.playSceneMusic('thief');
+        playSoundEffect(SOUND_EFFECTS.THIEF.APPEAR);
+
         let attackType;
         
-        // Garantizar un robo de vida la primera vez
         if (!hasHadFirstRandomAttackThisPartida) {
             attackType = 'lifeTheft';
             hasHadFirstRandomAttackThisPartida = true;
@@ -1936,12 +2330,10 @@ function triggerRandomEvent() {
             () => { 
                 switch (attackType) {
                     case 'lifeTheft':
-                        // El robo de vida aumenta la contaminación
                         grammaticalContamination = Math.min(grammaticalContamination + 10, CORRUPTION_MAX); 
                         return { title: 'Robo de Vidas', effectText: "¡Has perdido 1 vida!", onComplete: () => {
                             consecutiveFailures++;
-                            playerStats.jefesDerrotadosSeguidos = 0; // Rompe la racha
-                            // Comprobar si se activa la bendición del Guardián
+                            playerStats.jefesDerrotadosSeguidos = 0; 
                             if (consecutiveFailures === 1 && guardianBlessingAvailable) {
                                  guardianBlessingAvailable = false;
                                  if (guardianBlessingTimeout) clearTimeout(guardianBlessingTimeout);
@@ -1949,6 +2341,7 @@ function triggerRandomEvent() {
                                     if (gameState !== 'GAME_OVER' && consecutiveFailures > 0) {
                                         consecutiveFailures--;
                                         showGuardianGiftModal("El Guardián sintió tu tropiezo...", "¡Te devuelve 1 vida!");
+                                        playSoundEffect(SOUND_EFFECTS.GUARDIAN.HEAL);
                                         updateUI();
                                     }
                                     guardianBlessingTimeout = null;
@@ -1963,20 +2356,19 @@ function triggerRandomEvent() {
                             });
                         }};
                     case 'incomeTheft':
-                        // Aumenta el robo por dificultad/contaminación
                         const stolenFactor = 0.15 * difficultyFactor * contaminationFactor; 
                         const moneyStolen = Math.floor(playerMoney * stolenFactor);
                         return { title: 'Robo de Ingresos', effectText: `¡Te ha robado el ${Math.floor(stolenFactor*100)}% de tu dinero! (-${moneyStolen.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`, onComplete: () => {
                             playerMoney -= moneyStolen;
                             updateUI();
+                            playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                            window.audioSystem.playSceneMusic('playing', 0.5);
                         }};
                     case 'wordTheft':
-                        // Busca una categoría con palabras para robar
                         const ownableCategories = Object.keys(playerWords).filter(cat => cat !== "Sobreesdrújulas" && playerWords[cat]?.count > 0);
                         if (ownableCategories.length > 0) {
                             const randomCategory = ownableCategories[Math.floor(Math.random() * ownableCategories.length)];
                             const wordsInCategory = playerWords[randomCategory].list;
-                            // Aumenta el robo por dificultad/contaminación
                             const wordsToStealCount = Math.max(1, Math.floor(wordsInCategory.length * (0.10 * contaminationFactor)));
                             
                             return { title: 'Robo de Palabras', effectText: `¡Ha robado ${wordsToStealCount} palabra(s) de la categoría ${randomCategory}!`, onComplete: () => {
@@ -1988,14 +2380,17 @@ function triggerRandomEvent() {
                                 }
                                 playerWords[randomCategory].count -= wordsToStealCount;
                                 updateUI();
+                                playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                                window.audioSystem.playSceneMusic('playing', 0.5);
                             }};
                         } else { 
-                             // Fallback si no hay palabras para robar
                              const stolenFactorFallback = 0.15 * difficultyFactor;
                              const moneyStolenFallback = Math.floor(playerMoney * stolenFactorFallback);
                              return { title: 'Robo de Ingresos', effectText: `Iba a robar palabras, pero no tienes. Me conformo con ${moneyStolenFallback.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')}`, onComplete: () => {
                                 playerMoney -= moneyStolenFallback;
                                 updateUI();
+                                playSoundEffect(SOUND_EFFECTS.THIEF.STEAL);
+                                window.audioSystem.playSceneMusic('playing', 0.5);
                             }};
                         }
                 }
@@ -2020,16 +2415,18 @@ function triggerGuardianGift() {
     let moneyGained = 0;
     const difficultyFactor = calculateDynamicDifficulty();
 
-    if (giftRand < 0.85) { // 85% de probabilidad de Don de Riqueza
+    window.audioSystem.playSceneMusic('guardian'); // Música del Guardián
+    playSoundEffect(SOUND_EFFECTS.GUARDIAN.GIFT);
+
+    if (giftRand < 0.85) { 
          console.log("Guardian gift: Wealth.");
         dialogue = "Veo tu esfuerzo, acepta esta ayuda.";
-        // La recompensa se ajusta a la inversa de la dificultad
         const moneyPercent = (0.05 + Math.random() * 0.10) / difficultyFactor; 
         moneyGained = Math.floor(playerMoney * moneyPercent);
         effectText = `¡Don de Riqueza! (+${moneyGained.toLocaleString('es-ES', { useGrouping: true }).replace(/\./g, ',')})`;
         playerMoney += moneyGained;
         playerStats.dineroGanadoTotal += moneyGained;
-    } else { // 15% de probabilidad de Limbo Gramatical
+    } else { 
          console.log("Guardian gift: Protection (Limbo).");
         dialogue = "¡Protégete de la oscuridad!";
         effectText = "¡Don de Protección! (Limbo Gramatical +1 min)";
@@ -2066,6 +2463,7 @@ function showGuardianGiftModal(dialogue, effectText) {
     typeEffect(dialogueEl, dialogue, () => {
         effectTextEl.textContent = effectText;
         effectDiv.classList.remove('hidden');
+        window.audioSystem.playSceneMusic('playing', 0.5); // Vuelve a la música de juego tras el diálogo
     }, 4000); 
 }
 
@@ -2085,7 +2483,7 @@ function showRandomThiefAttackModal(getAttackDetailsCallback) {
     effectDiv.classList.add('hidden');
     
     setGameState('CINEMATIC');
-    playThiefMusic(); 
+    window.audioSystem.playSceneMusic('thief'); 
 
     modal.classList.remove('hidden');
     modal.classList.add('flex'); 
@@ -2104,6 +2502,7 @@ function showRandomThiefAttackModal(getAttackDetailsCallback) {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             if (gameState === 'CINEMATIC' && currentView === 'game') { 
+                 window.audioSystem.playSceneMusic('playing', 0.5);
                  setGameState('PLAYING');
             }
         }, 300);
@@ -2122,7 +2521,7 @@ function showWhisperModal(dialogue, onCompleteCallback = null) {
     document.getElementById('thiefWhisperIcon').innerHTML = ICON_LIBRARY.bossIcon;
     
     setGameState('CINEMATIC');
-    playThiefMusic(); 
+    window.audioSystem.playSceneMusic('thief'); 
 
     modal.classList.remove('hidden', 'opacity-0');
     modal.classList.add('flex'); 
@@ -2138,7 +2537,7 @@ function checkForThiefDeal(callbackOnNoDeal) {
     if ( (3 - consecutiveFailures) === 1 && gameState !== 'GAME_OVER') {
          console.log("Checking for thief deal.");
         setGameState('CINEMATIC');
-        playThiefMusic(); 
+        window.audioSystem.playSceneMusic('thief'); 
 
         // Identificar la categoría más valiosa para el trato
         let bestCategory = null;
@@ -2176,7 +2575,7 @@ function checkForThiefDeal(callbackOnNoDeal) {
                 playerWords[bestCategory] = { count: 0, list: [] };
                 modal.classList.add('hidden', 'opacity-0');
                 modal.classList.remove('flex');
-                playMainMusic(); 
+                window.audioSystem.playSceneMusic('playing'); 
                 showModal("Trato aceptado. Has recuperado una vida, pero tus palabras han desaparecido.");
                  updateUI();
             };
@@ -2187,12 +2586,12 @@ function checkForThiefDeal(callbackOnNoDeal) {
                 modal.classList.add('hidden', 'opacity-0');
                 modal.classList.remove('flex');
                 
-                playMainMusic(); 
+                window.audioSystem.playSceneMusic('playing'); 
                 if (callbackOnNoDeal) callbackOnNoDeal();
             };
         } else {
              console.log("No category eligible for deal.");
-             playMainMusic(); 
+             window.audioSystem.playSceneMusic('playing'); 
              if (gameState === 'CINEMATIC') setGameState('PLAYING');
              if (callbackOnNoDeal) callbackOnNoDeal();
         }
@@ -2213,30 +2612,36 @@ function mainGameLoop(timestamp) {
         return;
     }
     
-    // Lógica de Ingreso Pasivo y Contaminación (cada 1 segundo)
     if (!lastUpdateTime) lastUpdateTime = timestamp;
     const deltaTime = timestamp - lastUpdateTime;
     lastUpdateTime = timestamp;
     timeSinceLastIncomeUpdate += deltaTime;
-    timeElapsedInGame += deltaTime; // Contar el tiempo jugado
-    playerStats.tiempoJuego += deltaTime; // Actualizar estadística global (para logros)
+    timeElapsedInGame += deltaTime; 
+    playerStats.tiempoJuego += deltaTime; 
+    timeSinceLastContextCheck += deltaTime;
     
+    // 1. Lógica de Ingreso Pasivo y Contaminación (cada 1 segundo)
     if (timeSinceLastIncomeUpdate >= 1000) {
         let incomeThisSecond = passiveIncome;
-        // Aplicar boosts de Christopher y Limbo al ingreso por segundo
         if (Date.now() < christopherBoostEndTime) incomeThisSecond *= 2;
         if(Date.now() < limboGramaticalEndTime) incomeThisSecond *= 1.21;
         if (Date.now() < tripleIncomeEndTime) incomeThisSecond *= 3;
         
         playerMoney += incomeThisSecond;
         
-        // Aumentar la contaminación pasivamente
         grammaticalContamination = Math.min(grammaticalContamination + CORRUPTION_BASE_INCREASE_PER_SECOND, CORRUPTION_MAX);
 
         timeSinceLastIncomeUpdate = 0;
         
         updateUI();
     }
+
+    // 2. Lógica de Sonidos Contextuales (cada segundo)
+    if (timeSinceLastContextCheck >= 1000) {
+        checkContextualSounds();
+        timeSinceLastContextCheck = 0;
+    }
+
     updateTimerBarUI();
     animationFrameId = requestAnimationFrame(mainGameLoop);
 }
@@ -2249,7 +2654,6 @@ function updateTimerBarUI() {
     const bar = document.getElementById('wordTimerBar');
     if (!bar) return;
     
-    // Recalcular la duración de la palabra basada en la dificultad
     const baseDuration = currentWord.isBonus ? 1000 : 3000;
     const difficultyFactor = calculateDynamicDifficulty();
     const duration = currentWord.isBonus ? 1000 : Math.max(1000, baseDuration / difficultyFactor);
@@ -2260,7 +2664,6 @@ function updateTimerBarUI() {
     const percentage = (timeLeft / duration) * 100;
     bar.style.width = `${percentage}%`;
     
-    // Cambiar color de la barra según el tiempo restante
     if (percentage > 66) bar.style.backgroundColor = '#22c55e'; // Verde
     else if (percentage > 33) bar.style.backgroundColor = '#eab308'; // Amarillo
     else bar.style.backgroundColor = '#ef4444'; // Rojo
@@ -2309,95 +2712,113 @@ function stopRulesRotator() {
     if(rulesContainer) rulesContainer.classList.add('hidden');
 }
 
+// --- Funciones de Audio Simplificadas para usar DynamicAudioSystem ---
+
 /**
- * Inicializa el contexto de audio (requiere interacción del usuario).
+ * Inicializa el contexto de audio y el sistema dinámico (deepseek_javascript_20251203_38c99a.js).
  */
 async function initializeAudio() {
-     if (audioInitialized) return;
-     try {
-        console.log("Audio context will start on user interaction.");
-        setupMusic();
-        Tone.Transport.start(); // Inicia el transporte de Tone.js
-        audioInitialized = true; 
-     } catch (e) {
-         console.error("Error setting up audio:", e);
-     }
-}
-
-/**
- * Configura los sintetizadores y los loops de música principal y de jefe.
- */
-function setupMusic() {
-    // Efectos de audio
-    const mainReverb = new Tone.Reverb(1.5).toDestination();
-    const chorus = new Tone.Chorus(4, 2.5, 0.7).connect(mainReverb);
-    const thiefReverb = new Tone.Reverb(5).toDestination();
+    if (audioInitialized) return;
     
-    // Sintetizador para la música principal (Synth FM)
-    mainSynth = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1, modulationIndex: 7,
-        envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 1.4 },
-        modulation: { type: "triangle" }
-    }).connect(chorus);
-    mainSynth.volume.value = -Infinity; // Empieza silenciado
-
-    // Sintetizador para la música del Ladrón (Synth Duo para un sonido más oscuro)
-    thiefSynth = new Tone.PolySynth(Tone.DuoSynth, {
-        vibratoAmount: 0.5, vibratoRate: 5, harmonicity: 1,
-        voice0: { volume: -8, portamento: 0, oscillator: { type: 'sawtooth' }, filterEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 } },
-        voice1: { volume: -15, portamento: 0, oscillator: { type: 'sine' }, filterEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }, envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 } }
-    }).connect(thiefReverb);
-    thiefSynth.volume.value = -Infinity; // Empieza silenciado
-
-    // Secuencia de notas para la música principal (Acordes alegres/misteriosos)
-    const mainNotes = [ { time: '0:0', notes: ['C4', 'E4', 'G4'] }, { time: '0:2', notes: ['A4'] }, { time: '1:0', notes: ['G3', 'B3', 'D4'] }, { time: '2:0', notes: ['F3', 'A3', 'C4'] }, { time: '2:2', notes: ['G3'] }, { time: '3:0', notes: ['E3', 'G3', 'B3'] }, { time: '4:0', notes: ['A3', 'C4', 'E4'] }, { time: '4:2', notes: ['B4'] }, { time: '5:0', notes: ['G3', 'B3', 'D4'] }, { time: '6:0', notes: ['C4', 'E4', 'A4'] }, { time: '6:2', notes: ['G4'] }, { time: '7:0', notes: ['F3', 'A3', 'C4'] } ];
-    mainMusicLoop = new Tone.Part((time, value) => { mainSynth.triggerAttackRelease(value.notes, "2n", time); }, mainNotes);
-    mainMusicLoop.loop = true; mainMusicLoop.loopEnd = '8m';
-    mainMusicLoop.start(0);
-    
-    // Secuencia de notas para la música del Ladrón (Acordes disonantes/graves)
-    const thiefNotes = [ { time: '0:0', notes: ['C2', 'D#2'], duration: '2n' }, { time: '1:0', notes: ['C#2', 'E2'], duration: '2n' }, { time: '2:0', notes: ['D2', 'F2'], duration: '1m' }, { time: '3:2', notes: ['B1', 'C2'], duration: '2n' } ];
-    thiefMusicLoop = new Tone.Part((time, value) => { thiefSynth.triggerAttackRelease(value.notes, value.duration, time); }, thiefNotes);
-    thiefMusicLoop.loop = true; thiefMusicLoop.loopEnd = '4m';
-    thiefMusicLoop.start(0);
-}
-
-/**
- * Detiene la música atenuando el volumen.
- */
-function stopAllMusic() {
-    if (!audioInitialized) return;
-    
-     if (mainSynth) mainSynth.volume.rampTo(-Infinity, 0.5);
-     if (thiefSynth) thiefSynth.volume.rampTo(-Infinity, 0.5);
-}
-
-/**
- * Inicia la reproducción de la música principal y el rotador de reglas.
- */
-function playMainMusic() {
-    if (!audioInitialized || Tone.context.state !== 'running' || isMuted) return;
-    
-    mainSynth.volume.rampTo(-6, 1);
-    thiefSynth.volume.rampTo(-Infinity, 1);
-    
-    if(gameState === 'PLAYING') {
-        startRulesRotator(); 
-    } else {
-         stopRulesRotator();
+    try {
+        await Tone.start();
+        console.log("Audio context started.");
+        
+        // Inicializar sistemas de audio
+        window.audioSystem = new DynamicAudioSystem();
+        window.positionalAudio = new PositionalAudio();
+        window.audioSystem.startAllParts(); // Inicializa los loops silenciados
+        
+        // Añadir controles de audio
+        addAudioControls();
+        setupAudioEvents(); // Para conectar eventos a playSoundEffect
+        
+        audioInitialized = true;
+    } catch (e) {
+        console.error("Error initializing enhanced audio:", e);
     }
 }
 
 /**
- * Inicia la reproducción de la música del Ladrón y detiene el rotador de reglas.
+ * Configura eventos de audio para reaccionar a la lógica del juego (deepseek_javascript_20251203_38c99a.js).
+ * Nota: El evento 'transitionend' requiere que la barra de tiempo exista en el HTML.
  */
+function setupAudioEvents() {
+    const bar = document.getElementById('wordTimerBar');
+    if (bar) {
+        bar.addEventListener('transitionend', (e) => {
+            if (e.propertyName === 'width') {
+                const width = parseFloat(e.target.style.width);
+                if (width < 30 && gameState === 'PLAYING') {
+                    // Evita disparos constantes si el timer está atascado
+                    if (!window.audioSystem.warningPlayed) {
+                        window.audioSystem.addStinger('warning');
+                        window.audioSystem.warningPlayed = true;
+                    }
+                } else if (width > 30) {
+                    window.audioSystem.warningPlayed = false;
+                }
+            }
+        });
+    }
+
+    // Eventos de aparición (simulados aquí, podrían ser disparados por setGameState)
+    // No se implementa aquí para evitar doble lógica, ya que setGameState maneja la música.
+}
+
+/**
+ * Agrega controles de volumen dinámicos a la interfaz (simulado, asume que el HTML está listo).
+ * Integrado de deepseek_javascript_20251203_51f800.js
+ */
+function addAudioControls() {
+    const controlsContainer = document.getElementById('gameControls'); // Usamos el contenedor de controles existente
+
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'flex flex-col gap-1 text-xs bg-gray-50 p-2 rounded-lg shadow-inner';
+    controlsDiv.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold w-12 text-gray-700">Música:</span>
+            <input type="range" min="0" max="100" value="70" 
+                   class="w-16 accent-blue-600" id="musicVolume">
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold w-12 text-gray-700">Efectos:</span>
+            <input type="range" min="0" max="100" value="80" 
+                   class="w-16 accent-blue-600" id="sfxVolume">
+        </div>
+    `;
+    
+    if (controlsContainer) {
+        controlsContainer.appendChild(controlsDiv);
+    }
+    
+    // Event listeners para controles
+    document.getElementById('musicVolume')?.addEventListener('input', (e) => {
+        if (window.audioSystem) {
+            const volume = Tone.gainToDb(e.target.value / 100) - 6; // Ajuste para que 100 sea -6dB
+            window.audioSystem.musicVolume.volume.value = volume;
+        }
+    });
+    
+    document.getElementById('sfxVolume')?.addEventListener('input', (e) => {
+        if (window.audioSystem) {
+            const volume = Tone.gainToDb(e.target.value / 100);
+            window.audioSystem.sfxVolume.volume.value = volume;
+        }
+    });
+}
+
+// Las funciones stopAllMusic, playMainMusic, playThiefMusic ahora están obsoletas o se reemplazan
+// por los métodos de DynamicAudioSystem. Se mantienen solo como referencias o placeholders.
+
+function stopAllMusic(duration = 0.5) {
+    if (audioSystem) audioSystem.stopAllMusic(duration);
+}
+function playMainMusic() {
+    if (audioSystem) audioSystem.playSceneMusic('playing');
+}
 function playThiefMusic() {
-    if (!audioInitialized || Tone.context.state !== 'running' || isMuted) return;
-    
-    mainSynth.volume.rampTo(-Infinity, 1);
-    thiefSynth.volume.rampTo(-6, 1);
-    
-    stopRulesRotator(); 
+    if (audioSystem) audioSystem.playSceneMusic('thief');
 }
 
 /**
@@ -2407,10 +2828,6 @@ function startGameLoops() {
     if (animationFrameId || gameState !== 'PLAYING') return;
     
     stopGameLoops(); 
-    
-    if (!isWhispering) {
-        startRulesRotator();
-    }
     
     lastUpdateTime = 0; 
     animationFrameId = requestAnimationFrame(mainGameLoop);
@@ -2436,14 +2853,13 @@ function stopGameLoops() {
 }
 
 /**
- * Lógica común de inicio de juego (puede incluir carga de datos/guardado si fuera un juego persistente).
+ * Lógica común de inicio de juego.
  */
 async function startGameCommon(shouldLoad = true) {
      if (activeChallengeOnLoad) {
         handleChallengeFailure("Reto abandonado al recargar la página.");
         activeChallengeOnLoad = false;
      }
-     // No hay lógica de carga/guardado en este archivo, solo se inicializa el estado.
 }
 
 /**
@@ -2596,32 +3012,23 @@ function setupEventListeners() {
     muteButton.innerHTML = ICON_LIBRARY.speakerOn;
     muteButton.addEventListener('click', async () => { 
         if (isMuted && !audioInitialized) {
-            await initializeAudio();
-             try {
-                await Tone.start();
-                console.log("Audio context started by Unmute button.");
-            } catch(e) {
-                 console.error("Error starting audio context on unmute:", e);
-            }
-        } else if (isMuted && audioInitialized && Tone.context.state !== 'running') {
-             try {
-                await Tone.start();
-                console.log("Audio context resumed by Unmute button.");
-            } catch(e) {
-                 console.error("Error resuming audio context on unmute:", e);
-            }
+            await initializeAudio(); 
         }
-
+        
         isMuted = !isMuted;
         Tone.Destination.mute = isMuted;
         muteButton.innerHTML = isMuted ? ICON_LIBRARY.speakerOff : ICON_LIBRARY.speakerOn;
         
-        if(!isMuted && (gameState === 'PLAYING' || gameState === 'STARTUP')) {
-            playMainMusic();
-        } else if (!isMuted && (gameState === 'CHALLENGE_MINI' || gameState === 'CHALLENGE_BOSS' || isWhispering)) {
-            playThiefMusic();
+        if(!isMuted) {
+             if (Tone.context.state !== 'running') await Tone.start();
+            // Reanudar música de la escena actual
+            if(gameState === 'PLAYING' || gameState === 'STARTUP') {
+                window.audioSystem.playSceneMusic(gameState === 'PLAYING' ? 'playing' : 'startup');
+            } else if (gameState === 'CHALLENGE_MINI' || gameState === 'CHALLENGE_BOSS' || isWhispering) {
+                window.audioSystem.playSceneMusic('thief');
+            }
         } else {
-            stopAllMusic();
+            window.audioSystem.stopAllMusic(0.5);
         }
     });
     
@@ -2634,7 +3041,6 @@ function setupEventListeners() {
  */
 async function initGame() {
     changeView('startup'); 
-    // Intentar inicializar audio, pero se requiere interacción para iniciar el contexto.
     await initializeAudio(); 
     setupEventListeners();
 }
